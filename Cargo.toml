@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "encrust",
+    "encrust-core",
+    "encrust-macros",
+]
+
+resolver = "2"

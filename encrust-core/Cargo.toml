@@ -1,0 +1,26 @@
+[package]
+name = "encrust-core"
+version = "0.1.0"
+authors = ["Emil Taylor Bye <phptph@gmail.com>"]
+edition = "2021"
+license = "MIT"
+description = "Core functionality for the encrust crate"
+keywords = ["obfuscation"]
+categories = ["no-std"]
+repository = "https://github.com/emiltayl/encrust/"
+
+[dependencies]
+chacha20 = "0.9.1"
+rand = { "version" = "0.8.5", optional = true, default-features = false }
+zeroize = { version = "1.6.0", features = ["derive"] }
+
+[features]
+all = ["rand", "std", "macros"]
+default = ["rand", "std", "macros"]
+rand = ["dep:rand"]
+macros = []
+std = ["chacha20/std", "rand?/std", "zeroize/std"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
