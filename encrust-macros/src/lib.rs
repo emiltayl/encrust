@@ -34,8 +34,8 @@ use syn::parse_macro_input;
 /// let mut array = encrust!([1i32, 2i32, 3i32]);
 /// assert_eq!(&[1i32, 2i32, 3i32], array.decrust().as_slice());
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[proc_macro]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as Literal).generate_output_tokens()
 }
@@ -49,8 +49,8 @@ pub fn encrust(input: TokenStream) -> TokenStream {
 /// let mut a_vec = encrust_vec![1i32, 2i32, 3i32];
 /// assert_eq!(vec![1i32,2i32,3i32].as_slice(), a_vec.decrust().as_slice());
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[proc_macro]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust_vec(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as LiteralVec).generate_output_tokens()
 }
@@ -68,8 +68,8 @@ pub fn encrust_vec(input: TokenStream) -> TokenStream {
 /// # use encrust_macros::encrust_file_string;
 /// let mut cargo_toml = encrust_file_string!("Cargo.toml");
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[proc_macro]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust_file_string(input: TokenStream) -> TokenStream {
     StringFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
 }
@@ -88,8 +88,8 @@ pub fn encrust_file_string(input: TokenStream) -> TokenStream {
 /// # use encrust_macros::encrust_file_bytes;
 /// let mut cargo_toml = encrust_file_bytes!("Cargo.toml");
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[proc_macro]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust_file_bytes(input: TokenStream) -> TokenStream {
     BytesFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
 }
@@ -98,8 +98,8 @@ pub fn encrust_file_bytes(input: TokenStream) -> TokenStream {
 ///
 /// This requires that all fields are `Encrustable`. Currently, no other options
 /// are available.
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[proc_macro_derive(Encrustable)]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn derive_encrustable_macro(input: TokenStream) -> TokenStream {
     derive::derive_encrustable(parse_macro_input!(input as syn::DeriveInput))
 }

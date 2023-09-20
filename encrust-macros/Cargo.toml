@@ -25,4 +25,4 @@ syn = { version = "2.0.33", default-features = false, features = ["derive", "par
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustc-args = ["--cfg", "docsrs"]

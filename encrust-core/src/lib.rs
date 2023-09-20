@@ -27,7 +27,7 @@ use chacha20::{
 
 use zeroize::Zeroize;
 
-/// Container struct for encrust, accepting [`Encrustable`] + [`Zeroize`] types
+/// Container struct for encrust, accepting [`Encrustable`] + `Zeroize` types
 /// for encryption and decryption when needed.
 ///
 /// See [encrust](./index.html) for example usage.
@@ -44,8 +44,8 @@ impl<T> Encrusted<T>
 where
     T: Encrustable + Zeroize,
 {
-    /// Accepts [`Encrustable`] + [`Zeroize`] data and encrypts it using the
-    /// provided [`Key`] and [`XNonce`].
+    /// Accepts [`Encrustable`] + `Zeroize` data and encrypts it using the
+    /// provided `Key` and `XNonce`.
     pub fn new(mut data: T, key: Key, nonce: XNonce) -> Self {
         let mut encruster = XChaCha8::new(&key, &nonce);
 
@@ -75,7 +75,7 @@ where
         Self { data, key, nonce }
     }
 
-    /// Accepts [`Encrustable`] + [`Zeroize`] data and encrypts it using a
+    /// Accepts [`Encrustable`] + `Zeroize` data and encrypts it using a
     /// randomly generated key and nonce.
     #[cfg_attr(docsrs, doc(cfg(feature = "rand")))]
     #[cfg(feature = "rand")]

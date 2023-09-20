@@ -68,6 +68,8 @@
 //! (and strings), the actual data stored is encrypted, but the pointer to the
 //! data, as well as the length and capacity fields are not.
 
+#[doc(inline)]
 pub use encrust_core::*;
+#[cfg_attr(feature = "macros", doc(inline))]
 #[cfg(feature = "macros")]
 pub use encrust_macros::*;
