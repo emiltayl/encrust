@@ -1,4 +1,19 @@
 # Encrust
+
+[crates-badge]: https://img.shields.io/crates/v/encrust.svg
+[crates-url]: https://crates.io/crates/encrust
+[docs-image]: https://img.shields.io/docsrs/encrust.svg
+[docs-link]: https://docs.rs/encrust/
+[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[mit-url]: https://github.com/emiltayl/encrust/blob/main/LICENSE
+[build-image]: https://github.com/emiltayl/encrust/actions/workflows/rust.yml/badge.svg?branch=main
+[build-link]: https://github.com/emiltayl/encrust/actions/workflows/rust.yml
+
+[![Crates.io][crates-badge]][crates-url]
+[![Docs][docs-image]][docs-link]
+[![MIT licensed][mit-badge]][mit-url]
+[![Build Status][build-image]][build-link]
+
 A Rust crate for obfuscating data in memory by encrypting it, decrypting it only when needed.
 Encrust does not provide any security as the key and nonce required to decrypt the data is stored right next it.
 No integrity checks are performed either, which could lead to safety issues if the encrypted data is modified, for example resulting in `String`s that are not valid UTF-8.
