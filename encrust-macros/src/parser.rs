@@ -39,17 +39,21 @@ impl Parse for Literal {
                 "u64" => Self::U64(integer.base10_parse::<u64>()?),
                 "u128" => Self::U128(integer.base10_parse::<u128>()?),
                 "usize" => Self::Usize(integer.base10_parse::<usize>()?),
-                "" => return Err(syn::Error::new(
-                    integer.span(),
-                    "No integer data type suffix supplied.",
-                )),
-                _ => return Err(syn::Error::new(
-                    integer.span(),
-                    format!(
-                        "Supplied integer type `{}` not supported by `encrust_integer`.",
-                        integer.suffix()
-                    ),
-                )),
+                "" => {
+                    return Err(syn::Error::new(
+                        integer.span(),
+                        "No integer data type suffix supplied.",
+                    ))
+                }
+                _ => {
+                    return Err(syn::Error::new(
+                        integer.span(),
+                        format!(
+                            "Supplied integer type `{}` not supported by `encrust_integer`.",
+                            integer.suffix()
+                        ),
+                    ))
+                }
             })
         } else if input.peek(LitStr) {
             let string: LitStr = input.parse()?;

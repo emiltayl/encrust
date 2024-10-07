@@ -173,7 +173,7 @@ where
     }
 }
 
-impl<'decrusted, T> Drop for Decrusted<'decrusted, T>
+impl<T> Drop for Decrusted<'_, T>
 where
     T: Encrustable + Zeroize,
 {
@@ -190,7 +190,7 @@ where
     }
 }
 
-impl<'decrusted, T> Deref for Decrusted<'decrusted, T>
+impl<T> Deref for Decrusted<'_, T>
 where
     T: Encrustable + Zeroize,
 {
@@ -201,7 +201,7 @@ where
     }
 }
 
-impl<'decrusted, T> DerefMut for Decrusted<'decrusted, T>
+impl<T> DerefMut for Decrusted<'_, T>
 where
     T: Encrustable + Zeroize,
 {
@@ -350,7 +350,7 @@ mod tests {
 
         let mut encrusted = unsafe {
             encrusted_string.toggle_encrust(&mut encruster);
-            Encrusted::from_encrusted_data(encrusted_string, key.into(), nonce.into())
+            Encrusted::from_encrusted_data(encrusted_string, key, nonce)
         };
 
         assert_ne!(encrusted.data.as_bytes(), TEST_STRING.as_bytes());
@@ -370,7 +370,7 @@ mod tests {
             24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
         ];
 
-        let mut encrusted = Encrusted::new(orig_array.clone(), get_key(), get_nonce());
+        let mut encrusted = Encrusted::new(orig_array, get_key(), get_nonce());
         assert_ne!(encrusted.data, orig_array);
 
         {
@@ -391,7 +391,7 @@ mod tests {
             24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
         ];
 
-        let mut encrusted_array = orig_array.clone();
+        let mut encrusted_array = orig_array;
         let mut encrusted = unsafe {
             encrusted_array.toggle_encrust(&mut encruster);
             Encrusted::from_encrusted_data(encrusted_array, get_key(), get_nonce())
@@ -466,8 +466,8 @@ mod tests {
     fn test_rekey() {
         let num = 828627825u64;
         let mut encrusted = Encrusted::new(num, get_key(), get_nonce());
-        let orig_key = encrusted.key.clone();
-        let orig_nonce = encrusted.nonce.clone();
+        let orig_key = encrusted.key;
+        let orig_nonce = encrusted.nonce;
 
         encrusted.rekey(rand::thread_rng());
 
