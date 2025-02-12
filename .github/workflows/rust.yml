@@ -1,4 +1,7 @@
-name: Rust 
+name: Rust - CI
+permissions:
+  contents: read
+  pull-requests: write
 
 on:
   push:
@@ -10,13 +13,43 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  lint:
+    name: Linting and formatting
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --workspace --verbose
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy, rustfmt
+      - name: Clippy
+        run: cargo clippy --workspace --all-features -- -D warnings
+      - name: Format
+        run: cargo fmt --all -- --check --verbose
+
+  build:
+    name: Test and build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --all-targets --all-features --workspace --verbose
+      - name: Run tests
+        run: cargo test --all-features --workspace --verbose
+
+  miri:
+    name: Miri
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - name: Miri
+        run: cargo miri test --workspace --verbose
