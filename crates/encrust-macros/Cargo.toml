@@ -1,13 +1,14 @@
 [package]
 name = "encrust-macros"
-version = "0.1.1"
-authors = ["Emil Taylor Bye <phptph@gmail.com>"]
-edition = "2021"
-license = "MIT"
 description = "Proc and derive macros for the encrust crate"
-keywords = ["obfuscation"]
-categories = ["no-std"]
-repository = "https://github.com/emiltayl/encrust/"
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
 
 [lib]
 proc-macro = true
@@ -16,13 +17,20 @@ proc-macro = true
 zeroize = "1.6.0"
 
 [dependencies]
-encrust-core = { path = "../encrust-core", version = "0.1.0" }
-chacha20 = "0.9.1"
+encrust-core = { path = "../encrust-core", version = "0.2.0" }
 proc-macro2 = "1.0.67"
 quote = "1.0.33"
-rand = "0.8.5"
+rand = "0.9.0"
 syn = { version = "2.0.33", default-features = false, features = ["derive", "parsing", "printing", "proc-macro"] }
+
+[features]
+default = ["hashstrings", "std"]
+hashstrings = []
+std = []
 
 [package.metadata.docs.rs]
 all-features = true
 rustc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

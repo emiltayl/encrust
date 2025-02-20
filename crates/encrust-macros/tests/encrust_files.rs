@@ -1,3 +1,9 @@
+//! Tests for `encrust_file_string` and `encrust_file_bytes` macros.
+
+// Required because the macros expands to call functions from "encrust" crate, which cannot be
+// imported into encrust_macros as this would introduce cyclic dependencies.
+extern crate encrust_core as encrust;
+
 // unicode for good measure 🕶️
 
 #[test]

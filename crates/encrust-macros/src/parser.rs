@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use proc_macro2::Span;
-use syn::{bracketed, parse::Parse, LitInt, LitStr, Token};
+use syn::{LitInt, LitStr, Token, bracketed, parse::Parse};
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub enum Literal {
@@ -43,7 +43,7 @@ impl Parse for Literal {
                     return Err(syn::Error::new(
                         integer.span(),
                         "No integer data type suffix supplied.",
-                    ))
+                    ));
                 }
                 _ => {
                     return Err(syn::Error::new(
@@ -52,7 +52,7 @@ impl Parse for Literal {
                             "Supplied integer type `{}` not supported by `encrust_integer`.",
                             integer.suffix()
                         ),
-                    ))
+                    ));
                 }
             })
         } else if input.peek(LitStr) {
@@ -122,6 +122,43 @@ impl Parse for FilePath {
             path,
             span: path_lit.span(),
         })
+    }
+}
+
+#[cfg(feature = "hashstrings")]
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct ToHashString(pub String);
+
+#[cfg(feature = "hashstrings")]
+impl Parse for ToHashString {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let lit_str: LitStr = input.parse()?;
+
+        Ok(Self(lit_str.value()))
+    }
+}
+
+#[cfg(feature = "hashstrings")]
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct ToHashBytes(pub Vec<u8>);
+
+#[cfg(feature = "hashstrings")]
+impl Parse for ToHashBytes {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut bytes: Vec<u8> = Vec::new();
+        let buffer;
+        bracketed!(buffer in input);
+
+        while !buffer.is_empty() {
+            let lit: LitInt = buffer.parse()?;
+            bytes.push(lit.base10_parse()?);
+
+            if !buffer.is_empty() {
+                buffer.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(Self(bytes))
     }
 }
 
@@ -218,5 +255,32 @@ mod tests {
             Path::new(std::env!("CARGO_MANIFEST_DIR")).join("relative/path"),
             rel_path.path
         );
+    }
+
+    #[test]
+    fn parse_tohashstring() {
+        let string =
+            syn::parse_str::<ToHashString>("\"The quick brown fox jumps over the lazy dog😊\"")
+                .expect("Unable to parse literal");
+        assert_eq!(
+            ToHashString("The quick brown fox jumps over the lazy dog😊".to_string()),
+            string
+        );
+    }
+
+    #[test]
+    fn parse_tohashbytes() {
+        let bytes =
+            syn::parse_str::<ToHashBytes>("[0x01, 2, 3u8, 0b0]").expect("Unable to parse literal");
+        assert_eq!(ToHashBytes(vec![1, 2, 3, 0]), bytes);
+    }
+
+    #[test]
+    fn tohashbytes_fails_when_numbers_cannot_fit_u8() {
+        let too_large = syn::parse_str::<ToHashBytes>("[0, 256, 0]");
+        assert!(too_large.is_err());
+
+        let negative = syn::parse_str::<ToHashBytes>("[-1, 2, 3]");
+        assert!(negative.is_err());
     }
 }

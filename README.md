@@ -14,22 +14,26 @@
 [![MIT licensed][mit-badge]][mit-url]
 [![Build Status][build-image]][build-link]
 
-A Rust crate for obfuscating data in memory by encrypting it, decrypting it only when needed.
-Encrust does not provide any security as the key and nonce required to decrypt the data is stored right next it.
-No integrity checks are performed either, which could lead to safety issues if the encrypted data is modified, for example resulting in `String`s that are not valid UTF-8.
+A Rust crate for obfuscating data in memory, deobfuscating it only when needed. Encrust does not
+provide any security as the seed required to deobfuscate the data is stored right next to the data
+itself. No integrity checks are performed, which could lead to safety issues if the obfuscated data
+is modified somehow, for example resulting in `String`s that are not valid UTF-8.
+
+This crate also contains functionality to search for strings or byte arrays without including the
+strings or byte arrays in the executable.
 
 ## Example
-Encrust comes with all features enabled by default, to use add the following to Cargo.toml:
+Encrust comes with all features enabled by default. To use, add the following to Cargo.toml:
 
 ```toml
 [dependencies]
-encrust = "0.1"
+encrust = "0.2"
 ```
 
-Encrust can then be used to obfuscate data, optionally at compile-time using the built-in macros.
+Encrust can then be used to obfuscate data, optionally at compile-time using macros.
 
 ```rust
-use encrust::encrust;
+use encrust::{encrust, hashstring};
 
 // Encrust works by directly modifying the underlying memory
 // Therefore, encrusted values must be mut in order to be read
@@ -46,15 +50,31 @@ let mut hidden_number = encrust!(0xabc123u32);
 }
 
 // string and number are now out of scope and hidden_string and hidden_number are obfuscated again
+
+use std::io::{self, BufRead};
+let hashed_string = hashstring!("This string does not appear in the executable");
+let mut line = String::new();
+let stdin = std::io::stdin();
+
+println!("Enter the password: ");
+stdin.lock().read_line(&mut line).unwrap();
+
+if hashed_string == &line {
+  println!("You entered the correct password!");
+}
 ```
 
 ## Feature flags
 
 Encrust has the following feature flags, all enabled by default:
 
+* `hashstrings`: Include functionality to hash strings and byte arrays to search for them without
+  including the actual strings / bytes in the executable.
 * `std`: Compile with std. Removing this causes the crate to be built as no_std.
-* `macros`: Include macros used for Derive macro and proc macros for obfuscating values at compile-time.
-* `rand`: Includes functions to obfuscate data at run-time using a `rand::Rng`, as well as a function to change the key and nonce used.
+* `macros`: Include macros used for Derive macro and proc macros for obfuscating values at
+  compile-time.
+* `rand`: Includes functions to obfuscate data at run-time using a `rand::Rng`, as well as a
+  function to change the seed used.
 
 ## License
 

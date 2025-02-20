@@ -1,3 +1,9 @@
+//! Tests for "encrusting" literals (numbers, strings and arrays and vecs of numbers or strings).
+
+// Required because the macros expands to call functions from "encrust" crate, which cannot be
+// imported into encrust_macros as this would introduce cyclic dependencies.
+extern crate encrust_core as encrust;
+
 use encrust_macros::{encrust, encrust_vec};
 
 const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";

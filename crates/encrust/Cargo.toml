@@ -1,0 +1,33 @@
+[package]
+name = "encrust"
+description = "Obfuscate data in memory to hide it until needed"
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+encrust-core = { path = "../encrust-core", "version" = "0.2.0", default-features = false }
+encrust-macros = { path = "../encrust-macros", "version" = "0.2.0", default-features = false, optional = true }
+
+[dev-dependencies]
+rand = "0.9.0"
+zeroize = { version = "1.6.0", features = ["derive"] }
+
+[features]
+all = ["hashstrings", "macros", "std"]
+default = ["hashstrings", "macros", "std"]
+hashstrings = ["encrust-core/hashstrings", "encrust-macros?/hashstrings"]
+macros = ["dep:encrust-macros", "encrust-core/macros"]
+std = ["encrust-core/std", "encrust-macros?/std"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

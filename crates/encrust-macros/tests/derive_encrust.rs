@@ -1,6 +1,8 @@
-use chacha20::{cipher::KeyIvInit, Key, XChaCha8, XNonce};
+//! Tests for the derive `Encrustable` macro.
+
 use encrust_core::Encrustable;
 use encrust_macros::*;
+use rand::{RngCore, SeedableRng, rngs::SmallRng};
 use zeroize::Zeroize;
 
 const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";
@@ -37,11 +39,8 @@ enum NamedOrTuple {
 #[derive(Clone, Debug, Encrustable, PartialEq, Zeroize)]
 struct Generic<T, U: PartialEq, P: Encrustable>(T, U, P);
 
-fn gen_key_nonce() -> (Key, XNonce) {
-    let key = Key::from([0x55; 32]);
-    let nonce = XNonce::from([0xAA; 24]);
-
-    (key, nonce)
+fn gen_seed() -> u64 {
+    rand::rng().next_u64()
 }
 
 #[test]
@@ -55,9 +54,9 @@ fn derive_named() {
     };
     let original = named.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encrusted = encrust_core::Encrusted::new(named, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(named, seed);
     let decrusted = encrusted.decrust();
     assert!(decrusted.eq(&original));
 }
@@ -73,14 +72,17 @@ fn derive_named_ne() {
     };
     let original = named.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encruster = XChaCha8::new(&key, &nonce);
+    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+
+    // Safety: This is potentially unsafe, but used to test that encrusted data is not equal to
+    // the underlying data.
     unsafe {
-        named.toggle_encrust(&mut encruster);
+        named.toggle_encrust(&mut encrust_rng);
     }
 
-    let mut encrusted = encrust_core::Encrusted::new(named, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(named, seed);
     let decrusted = encrusted.decrust();
 
     assert!(decrusted.byte.ne(&original.byte));
@@ -101,9 +103,9 @@ fn derive_tuple() {
     );
     let original = named.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encrusted = encrust_core::Encrusted::new(named, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(named, seed);
     let decrusted = encrusted.decrust();
     assert!(decrusted.eq(&original));
 }
@@ -119,14 +121,17 @@ fn derive_tuple_ne() {
     );
     let original = named.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encruster = XChaCha8::new(&key, &nonce);
+    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+
+    // Safety: This is potentially unsafe, but used to test that encrusted data is not equal to
+    // the underlying data.
     unsafe {
-        named.toggle_encrust(&mut encruster);
+        named.toggle_encrust(&mut encrust_rng);
     }
 
-    let mut encrusted = encrust_core::Encrusted::new(named, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(named, seed);
     let decrusted = encrusted.decrust();
 
     assert!(decrusted.0.ne(&original.0));
@@ -147,9 +152,9 @@ fn derive_enum_named() {
     };
     let original = named.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encrusted = encrust_core::Encrusted::new(named, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(named, seed);
     let decrusted = encrusted.decrust();
     assert!(decrusted.eq(&original));
 }
@@ -165,14 +170,17 @@ fn derive_enum_named_ne() {
     };
     let original = named.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encruster = XChaCha8::new(&key, &nonce);
+    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+
+    // Safety: This is potentially unsafe, but used to test that encrusted data is not equal to
+    // the underlying data.
     unsafe {
-        named.toggle_encrust(&mut encruster);
+        named.toggle_encrust(&mut encrust_rng);
     }
 
-    let mut encrusted = encrust_core::Encrusted::new(named, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(named, seed);
     let decrusted = encrusted.decrust();
 
     match (&*decrusted, &original) {
@@ -200,7 +208,7 @@ fn derive_enum_named_ne() {
         }
 
         _ => panic!("Enum kinds should be Named but are not!?"),
-    };
+    }
 }
 
 #[test]
@@ -214,9 +222,9 @@ fn derive_enum_tuple() {
     );
     let original = tuple.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encrusted = encrust_core::Encrusted::new(tuple, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(tuple, seed);
     let decrusted = encrusted.decrust();
     assert!(decrusted.eq(&original));
 }
@@ -232,14 +240,17 @@ fn derive_enum_tuple_ne() {
     );
     let original = tuple.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encruster = XChaCha8::new(&key, &nonce);
+    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+
+    // Safety: This is potentially unsafe, but used to test that encrusted data is not equal to
+    // the underlying data.
     unsafe {
-        tuple.toggle_encrust(&mut encruster);
+        tuple.toggle_encrust(&mut encrust_rng);
     }
 
-    let mut encrusted = encrust_core::Encrusted::new(tuple, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(tuple, seed);
     let decrusted = encrusted.decrust();
 
     match (&*decrusted, &original) {
@@ -263,9 +274,9 @@ fn derive_with_generics() {
     let generic = Generic(13u32, [80u8; 4], TEST_STRING.to_string());
     let original = generic.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encrusted = encrust_core::Encrusted::new(generic, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(generic, seed);
     let decrusted = encrusted.decrust();
 
     assert!(decrusted.eq(&original));
@@ -276,14 +287,17 @@ fn derive_with_generics_ne() {
     let mut generic = Generic(13u32, [80u8; 4], TEST_STRING.to_string());
     let original = generic.clone();
 
-    let (key, nonce) = gen_key_nonce();
+    let seed = gen_seed();
 
-    let mut encruster = XChaCha8::new(&key, &nonce);
+    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+
+    // Safety: This is potentially unsafe, but used to test that encrusted data is not equal to
+    // the underlying data.
     unsafe {
-        generic.toggle_encrust(&mut encruster);
+        generic.toggle_encrust(&mut encrust_rng);
     }
 
-    let mut encrusted = encrust_core::Encrusted::new(generic, key, nonce);
+    let mut encrusted = encrust_core::Encrusted::new(generic, seed);
     let decrusted = encrusted.decrust();
 
     assert!(decrusted.0.ne(&original.0));

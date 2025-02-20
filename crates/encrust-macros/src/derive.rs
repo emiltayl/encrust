@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::{
-    parse_quote, spanned::Spanned, Data, DeriveInput, Fields, GenericParam, Generics, Ident, Index,
-    Variant,
+    Data, DeriveInput, Fields, GenericParam, Generics, Ident, Index, Variant, parse_quote,
+    spanned::Spanned,
 };
 
 pub fn derive_encrustable(input: DeriveInput) -> TokenStream {
@@ -19,7 +19,7 @@ pub fn derive_encrustable(input: DeriveInput) -> TokenStream {
     quote! {
         #[doc(hidden)]
         impl #impl_generics ::encrust_core::Encrustable for #name #ty_generics #where_clause  {
-            unsafe fn toggle_encrust(&mut self, encruster: &mut ::chacha20::XChaCha8) {
+            unsafe fn toggle_encrust(&mut self, encruster: &mut impl ::rand::RngCore) {
                 #encrypatble_impl
             }
         }
@@ -60,7 +60,9 @@ fn gen_struct_fields_calls(fields: &Fields) -> proc_macro2::TokenStream {
                 let name = &field.ident;
 
                 quote_spanned! {field.span()=>
-                    ::encrust_core::Encrustable::toggle_encrust(&mut self.#name, encruster);
+                    unsafe {
+                        ::encrust_core::Encrustable::toggle_encrust(&mut self.#name, encruster);
+                    }
                 }
             });
 
@@ -76,7 +78,9 @@ fn gen_struct_fields_calls(fields: &Fields) -> proc_macro2::TokenStream {
                     let index = Index::from(index);
 
                     quote_spanned! {field.span()=>
-                        ::encrust_core::Encrustable::toggle_encrust(&mut self.#index, encruster);
+                        unsafe {
+                            ::encrust_core::Encrustable::toggle_encrust(&mut self.#index, encruster);
+                        }
                     }
                 });
 
@@ -97,7 +101,9 @@ fn gen_variant_fields_calls(variant: &Variant) -> proc_macro2::TokenStream {
                 let name = &field.ident;
 
                 quote_spanned! {field.span()=>
-                    ::encrust_core::Encrustable::toggle_encrust(#name, encruster);
+                    unsafe {
+                        ::encrust_core::Encrustable::toggle_encrust(#name, encruster);
+                    }
                 }
             });
 
@@ -124,7 +130,9 @@ fn gen_variant_fields_calls(variant: &Variant) -> proc_macro2::TokenStream {
                     let ident = Ident::new(&name, field.span());
 
                     quote_spanned! {field.span()=>
-                        ::encrust_core::Encrustable::toggle_encrust(#ident, encruster);
+                        unsafe {
+                            ::encrust_core::Encrustable::toggle_encrust(#ident, encruster);
+                        }
                     }
                 });
 
