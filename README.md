@@ -73,8 +73,6 @@ Encrust has the following feature flags, all enabled by default:
 * `std`: Compile with std. Removing this causes the crate to be built as no_std.
 * `macros`: Include macros used for Derive macro and proc macros for obfuscating values at
   compile-time.
-* `rand`: Includes functions to obfuscate data at run-time using a `rand::Rng`, as well as a
-  function to change the seed used.
 
 ## License
 
