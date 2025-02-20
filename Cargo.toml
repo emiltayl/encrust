@@ -1,8 +1,64 @@
 [workspace]
 members = [
-    "encrust",
-    "encrust-core",
-    "encrust-macros",
+    "crates/encrust",
+    "crates/encrust-core",
+    "crates/encrust-macros",
 ]
 
-resolver = "2"
+exclude = [
+    "test_crates/*"
+]
+
+resolver = "3"
+
+[workspace.package]
+authors = ["Emil Taylor Bye <phptph@gmail.com>"]
+categories = ["no-std"]
+edition = "2024"
+keywords = ["obfuscation"]
+license = "MIT"
+repository = "https://github.com/emiltayl/encrust/"
+rust-version = "1.85"
+version = "0.2.0"
+
+[workspace.lints.rust]
+deprecated_safe = { level = "deny", priority = 1 } 
+macro_use_extern_crate = "deny"
+missing-abi = "warn"
+missing_docs = "deny"
+missing_unsafe_on_extern = "warn"
+non_ascii_idents = "deny"
+redundant_imports = "warn"
+unit_bindings = "warn"
+# unused_crate_dependencies = "warn" Add this if it plays nicely with tests
+unused_qualifications = "warn"
+variant-size-differences = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = 2 }
+must_use_candidate = { level = "allow", priority = 9 }
+cargo = { level = "warn", priority = 3 }
+
+# Restrictions
+allow_attributes_without_reason = "warn"
+clone_on_ref_ptr = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+deref_by_slicing = "warn"
+empty_drop = "deny"
+empty_enum_variants_with_brackets = "deny"
+empty_structs_with_brackets = "deny"
+error_impl_error = "deny"
+redundant_type_annotations = "warn"
+semicolon_inside_block = "warn"
+undocumented_unsafe_blocks = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unneeded_field_pattern = "warn"
+
+# Currently caused by rand(?), see if this can be removed eventually
+# Run with this from time to time to check status?
+multiple_crate_versions = { level = "allow", priority = 10 }
+
+[workspace.lints.rustdoc]
+# TODO https://doc.rust-lang.org/rustdoc/lints.html

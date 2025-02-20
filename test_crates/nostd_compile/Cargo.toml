@@ -1,0 +1,15 @@
+[package]
+name = "nostd_compile"
+description = "Crate used to verify that compiling encrust with no_std works."
+version = "0.2.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+encrust = { version = "0.2.0", path = "../../crates/encrust", default-features = false, features = ["hashstrings", "macros"] }
+dlmalloc = { version = "0.2.8", features = ["global"] }
+
+[profile.dev]
+panic = "abort"
+
+[workspace]

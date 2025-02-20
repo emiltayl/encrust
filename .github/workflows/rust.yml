@@ -53,3 +53,17 @@ jobs:
           components: miri
       - name: Miri
         run: cargo miri test --workspace --verbose
+
+  no_std:
+    name: Build and run no_std
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --manifest-path test_crates/nostd_compile/Cargo.toml
+      - name: Run
+        run: cargo run --manifest-path test_crates/nostd_compile/Cargo.toml
