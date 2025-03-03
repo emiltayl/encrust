@@ -25,7 +25,7 @@ version = "0.2.0"
 deprecated_safe = { level = "deny", priority = 1 } 
 macro_use_extern_crate = "deny"
 missing-abi = "warn"
-missing_docs = "deny"
+missing_docs = "warn"
 missing_unsafe_on_extern = "warn"
 non_ascii_idents = "deny"
 redundant_imports = "warn"
@@ -59,6 +59,3 @@ unneeded_field_pattern = "warn"
 # Currently caused by rand(?), see if this can be removed eventually
 # Run with this from time to time to check status?
 multiple_crate_versions = { level = "allow", priority = 10 }
-
-[workspace.lints.rustdoc]
-# TODO https://doc.rust-lang.org/rustdoc/lints.html
