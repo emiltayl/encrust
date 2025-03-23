@@ -1,0 +1,67 @@
+name: Rust - Periodic CI
+permissions:
+  contents: read
+
+on:
+  schedule:
+    -cron: "20 17 15 * *"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  nightly_checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    name: Periodic CI checks - ${{ matrix.os }} - nightly
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1 # 2025-03-15
+        with:
+          toolchain: nightly
+          components: clippy, rustfmt, miri
+      - name: Format
+        run: cargo fmt --all -- --check --verbose
+      - name: Clippy
+        run: cargo clippy --workspace --all-features -- -D warnings
+      - name: Build
+        run: cargo build --all-targets --all-features --workspace --verbose
+      - name: Run tests
+        run: cargo test --all-features --workspace --verbose
+      - name: Miri
+        run: cargo miri test --workspace --verbose
+      - name: Build no_std
+        run: cargo build --manifest-path test_crates/nostd_compile/Cargo.toml
+      - name: Run no_std
+        run: cargo run --manifest-path test_crates/nostd_compile/Cargo.toml
+      
+
+  checks:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        toolchain: [1.85.0, stable]
+    name: Periodic CI checks - ${{ matrix.os }} - ${{ matrix.toolchain }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1 # 2025-03-15
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: Build
+        run: cargo build --all-targets --all-features --workspace --verbose
+      - name: Run tests
+        run: cargo test --all-features --workspace --verbose
+      - name: Build no_std
+        run: cargo build --manifest-path test_crates/nostd_compile/Cargo.toml
+      - name: Run no_std
+        run: cargo run --manifest-path test_crates/nostd_compile/Cargo.toml
+
+  workflow-keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@f72ff1a1336129f29bf0166c0fd0ca6cf1bcb38c # v1.2.1
+
