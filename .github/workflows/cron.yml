@@ -4,7 +4,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "20 17 15 * *"
+    - cron: "20 17 16 * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,6 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     name: Periodic CI checks - ${{ matrix.os }} - nightly
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1 # 2025-03-15
@@ -43,6 +44,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         toolchain: [1.85.0, stable]
+    runs-on: ${{ matrix.os }}
     name: Periodic CI checks - ${{ matrix.os }} - ${{ matrix.toolchain }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
