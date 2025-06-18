@@ -93,7 +93,7 @@ where
 
     /// Deobfuscates the data contained in [`Encrusted`] and returns a [`Decrusted`] object that can
     /// be used to access and modify the actual data.
-    pub fn decrust(&mut self) -> Decrusted<T> {
+    pub fn decrust(&mut self) -> Decrusted<'_, T> {
         Decrusted::new(self)
     }
 }
