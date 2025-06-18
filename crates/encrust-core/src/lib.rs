@@ -208,7 +208,7 @@ macro_rules! encrustable_number {
                         }
                     }
 
-                    *self = Self::from_ne_bytes(bytes);
+                    *self = Self::from_le_bytes(bytes);
                 }
             }
         )*
