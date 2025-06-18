@@ -1,4 +1,11 @@
+# Version 0.2.1 - 2025-06-18
+
+* Fixed encrust on big endian architectures. [#11]
+
+[#11]: https://github.com/emiltayl/encrust/pull/11
+
 # Version 0.2.0 - 2025-02-20
+
 * Upgraded `rand` dependency to 0.9.0.
 * Replaced `XChacha8` with `rand::SmallRng` for obfuscating data.
 * New `hashstrings` features to allow searching for strings and bytes without including the data
