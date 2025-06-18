@@ -37,7 +37,6 @@ jobs:
         run: cargo build --manifest-path test_crates/nostd_compile/Cargo.toml
       - name: Run no_std
         run: cargo run --manifest-path test_crates/nostd_compile/Cargo.toml
-      
 
   checks:
     strategy:
