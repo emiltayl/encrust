@@ -3,7 +3,7 @@
 //! Macros are used to make it possible to ensure that the plain text is not present in the
 //! executable, see the documentation for [`encrust`] for examples of macro usage.
 
-use rapidhash::rapidhash_seeded;
+use rapidhash::v3::{RapidSecrets, rapidhash_v3_seeded};
 use zeroize::Zeroize;
 
 /// Used to specify whether a [`Hashstring`] should ignore case when comparing strings.
@@ -48,15 +48,16 @@ impl Hashstring {
     /// This function does not zeroize the original string. To avoid ever having the string in
     /// memory, it is recommended to use the `hashstring!` macro.
     pub fn new(s: &str, seed: u64, sensitivity: Sensitivity) -> Self {
+        let rapid_secrets = RapidSecrets::seed_cpp(seed);
         let value = match sensitivity {
             Sensitivity::CaseInsensitive => {
                 let mut lowercase_string = s.to_lowercase();
-                let hash = rapidhash_seeded(lowercase_string.as_bytes(), seed);
+                let hash = rapidhash_v3_seeded(lowercase_string.as_bytes(), &rapid_secrets);
                 Zeroize::zeroize(&mut lowercase_string);
 
                 hash
             }
-            Sensitivity::CaseSensitive => rapidhash_seeded(s.as_bytes(), seed),
+            Sensitivity::CaseSensitive => rapidhash_v3_seeded(s.as_bytes(), &rapid_secrets),
         };
 
         Self {
@@ -91,11 +92,12 @@ impl Hashstring {
 
 impl PartialEq<&str> for Hashstring {
     fn eq(&self, other: &&str) -> bool {
+        let seed = RapidSecrets::seed_cpp(self.seed);
         let other_value = match self.sensitivity {
             Sensitivity::CaseInsensitive => {
-                rapidhash_seeded(other.to_lowercase().as_bytes(), self.seed)
+                rapidhash_v3_seeded(other.to_lowercase().as_bytes(), &seed)
             }
-            Sensitivity::CaseSensitive => rapidhash_seeded(other.as_bytes(), self.seed),
+            Sensitivity::CaseSensitive => rapidhash_v3_seeded(other.as_bytes(), &seed),
         };
 
         self.value == other_value
@@ -125,7 +127,8 @@ impl Hashbytes {
     /// This function does not zeroize the original data. To avoid ever having the data in memory,
     /// it is recommended to use the `hashbytes` macro.
     pub fn new(bytes: &[u8], seed: u64) -> Self {
-        let value = rapidhash_seeded(bytes, seed);
+        let rapid_secrets = RapidSecrets::seed(seed);
+        let value = rapidhash_v3_seeded(bytes, &rapid_secrets);
 
         Self { value, seed }
     }
@@ -151,7 +154,8 @@ impl Hashbytes {
 
 impl PartialEq<&[u8]> for Hashbytes {
     fn eq(&self, other: &&[u8]) -> bool {
-        let other_value = rapidhash_seeded(other, self.seed);
+        let rapid_secrets = RapidSecrets::seed(self.seed);
+        let other_value = rapidhash_v3_seeded(other, &rapid_secrets);
 
         self.value == other_value
     }
