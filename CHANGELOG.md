@@ -2,6 +2,7 @@
 
 * Set a fixed seed for tests to make the tests deterministic. There are still some randomness in the
   tests, but this *should* not cause test failures in most cases.
+* Upgraded `rapidhash` dependency to v4.1.0.
 
 # Version 0.2.1 - 2025-06-18
 
