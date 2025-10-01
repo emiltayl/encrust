@@ -274,7 +274,7 @@ mod tests {
     const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";
 
     fn get_seed() -> u64 {
-        rand::rng().next_u64()
+        0x2357_bd11_1317_1d1f
     }
 
     macro_rules! test_ints {

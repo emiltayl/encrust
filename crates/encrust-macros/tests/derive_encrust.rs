@@ -2,7 +2,7 @@
 
 use encrust_core::Encrustable;
 use encrust_macros::*;
-use rand::{RngCore, SeedableRng, rngs::SmallRng};
+use rand::{SeedableRng, rngs::SmallRng};
 use zeroize::Zeroize;
 
 const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";
@@ -40,7 +40,7 @@ enum NamedOrTuple {
 struct Generic<T, U: PartialEq, P: Encrustable>(T, U, P);
 
 fn gen_seed() -> u64 {
-    rand::rng().next_u64()
+    0x2357_bd11_1317_1d1f
 }
 
 #[test]
