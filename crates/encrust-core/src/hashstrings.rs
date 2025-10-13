@@ -127,7 +127,7 @@ impl Hashbytes {
     /// This function does not zeroize the original data. To avoid ever having the data in memory,
     /// it is recommended to use the `hashbytes` macro.
     pub fn new(bytes: &[u8], seed: u64) -> Self {
-        let rapid_secrets = RapidSecrets::seed(seed);
+        let rapid_secrets = RapidSecrets::seed_cpp(seed);
         let value = rapidhash_v3_seeded(bytes, &rapid_secrets);
 
         Self { value, seed }
@@ -154,7 +154,7 @@ impl Hashbytes {
 
 impl PartialEq<&[u8]> for Hashbytes {
     fn eq(&self, other: &&[u8]) -> bool {
-        let rapid_secrets = RapidSecrets::seed(self.seed);
+        let rapid_secrets = RapidSecrets::seed_cpp(self.seed);
         let other_value = rapidhash_v3_seeded(other, &rapid_secrets);
 
         self.value == other_value
@@ -182,17 +182,50 @@ mod tests {
             Sensitivity::CaseInsensitive,
         );
 
-        assert!(case_sensitive_hashstring.eq(&A_STRING));
-        assert!(case_sensitive_hashstring.ne(&A_LOWERCASE_STRING));
-        assert!(case_insensitive_hashstring.eq(&A_STRING));
-        assert!(case_insensitive_hashstring.eq(&A_LOWERCASE_STRING));
+        assert!(case_sensitive_hashstring == A_STRING);
+        assert!(case_sensitive_hashstring != A_LOWERCASE_STRING);
+        assert!(case_insensitive_hashstring == A_STRING);
+        assert!(case_insensitive_hashstring == A_LOWERCASE_STRING);
     }
 
     #[test]
     fn test_hashbytes() {
         let hashbytes = Hashbytes::new(A_STRING_BYTES, rand::rng().next_u64());
 
-        assert!(hashbytes.eq(&A_STRING_BYTES));
-        assert!(hashbytes.ne(&A_LOWERCASE_STRING_BYTES));
+        assert!(hashbytes == A_STRING_BYTES);
+        assert!(hashbytes != A_LOWERCASE_STRING_BYTES);
+    }
+
+    /// Test to make sure that a previously encrusted object can be decrusted with the current
+    /// version of `encrust`.
+    #[test]
+    fn ensure_hashstring_bytes_has_not_changed() {
+        // Created from `A_LOWERCASE_STRING`
+        #[allow(
+            clippy::unreadable_literal,
+            reason = "Created using a random seed, has no special meaning outside of this crate."
+        )]
+        let value = 10002744355855325072u64;
+
+        #[allow(
+            clippy::unreadable_literal,
+            reason = "A random seed, has no special meaning outside of this crate."
+        )]
+        let seed = 15748439925883409278u64;
+
+        let hashed_string_lower =
+            Hashstring::new_from_raw_value(value, seed, Sensitivity::CaseSensitive);
+
+        let hashed_string_lower_ci =
+            Hashstring::new_from_raw_value(value, seed, Sensitivity::CaseInsensitive);
+
+        let hashed_bytes = Hashbytes::new_from_raw_value(value, seed);
+
+        assert!(hashed_string_lower != A_STRING);
+        assert!(hashed_string_lower == A_LOWERCASE_STRING);
+        assert!(hashed_string_lower_ci == A_STRING);
+        assert!(hashed_string_lower_ci == A_LOWERCASE_STRING);
+        assert!(hashed_bytes != A_STRING_BYTES);
+        assert!(hashed_bytes == A_LOWERCASE_STRING_BYTES);
     }
 }

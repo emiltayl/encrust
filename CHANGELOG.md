@@ -2,7 +2,13 @@
 
 * Set a fixed seed for tests to make the tests deterministic. There are still some randomness in the
   tests, but this *should* not cause test failures in most cases.
-* Upgraded `rapidhash` dependency to v4.1.0.
+* Upgraded `rapidhash` dependency to v4.1.0. This prevents depending on two different versions of
+  the `rand` crate (0.8 and 0.9).
+* Changed the hashing algorithm used by `Hashstring` and `Hashbytes` to rapidhash V3. This means
+  that a seed and hash value from encrust 0.2.1 or earlier will not work if using this version, or
+  newer, of encrust. New tests have been added to make sure that similar changes are detected
+  automatically in the future. Ideally, a change like this should not happen again, but if it does,
+  it will be accompanied by a major version bump.
 
 # Version 0.2.1 - 2025-06-18
 
