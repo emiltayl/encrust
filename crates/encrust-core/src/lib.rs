@@ -466,4 +466,34 @@ mod tests {
             assert_eq!(*decrusted, num);
         }
     }
+
+    /// Test to make sure that a previously encrusted object can be decrusted with the current
+    /// version of `encrust`.
+    #[test]
+    fn ensure_encrust_has_not_changed() {
+        // Safety: Comparing a `String` with invalid UTF-8 in a test should hopefully at worst crash
+        // the test.
+        let mut test_string = unsafe {
+            Encrusted::from_encrusted_data(
+                String::from_utf8_unchecked(
+                    [
+                        55u8, 10u8, 35u8, 94u8, 130u8, 81u8, 207u8, 225u8, 64u8, 17u8, 143u8, 78u8,
+                        95u8, 204u8, 50u8, 183u8, 54u8, 185u8, 59u8, 50u8, 163u8, 122u8, 131u8,
+                        136u8, 172u8, 79u8, 17u8, 12u8, 56u8, 64u8, 59u8, 173u8, 102u8, 54u8,
+                        184u8, 186u8, 1u8, 246u8, 193u8, 136u8, 220u8, 224u8, 117u8, 144u8, 131u8,
+                        65u8, 77u8,
+                    ]
+                    .to_vec(),
+                ),
+                #[allow(
+                    clippy::unreadable_literal,
+                    reason = "Arbitrary number chosen at random with no further meaning."
+                )]
+                5233902475398815152u64,
+            )
+        };
+
+        let decrusted_test_string = test_string.decrust();
+        assert_eq!(*decrusted_test_string, TEST_STRING);
+    }
 }
