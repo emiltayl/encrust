@@ -85,8 +85,16 @@ assert!(hashed_bytes == &[0, 1, 2, 3, 4, 5]);
 
 ## Limitations
 Encrust currently only offers obfuscation of certain simple data structures, most container types
-are not supported yet. Additionally, certain data are not obfuscated at the moment. For vectors and
-strings, the actual data is obfuscated, but the pointer to the data as well as the length and
-capacity fields are not.
+are not supported yet. Additionally, certain data are not obfuscated. For vectors and strings, the
+actual data is obfuscated, but pointers to the data as well as the length and capacity fields are
+not.
+
+Encrusted data is `zeroize`d prior to being dropped. If you need to perform operations with the data
+prior to dropping it, the encrusted data should be wrapped in a struct. The drop logic can then be
+implemented for the outermost struct, which can access the encrusted data before it is zeroed.
+
+Encrust is created for obfuscation within an application, and not to communicate secrets between
+different applications. A proper cryptographic protocol is recommended if you want secure
+communications.
 
 License: MIT
