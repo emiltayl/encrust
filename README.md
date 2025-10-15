@@ -27,7 +27,7 @@ Encrust comes with all features enabled by default. To use, add the following to
 
 ```toml
 [dependencies]
-encrust = "0.2"
+encrust = "0.3"
 ```
 
 Encrust can then be used to obfuscate data, optionally at compile-time using macros.

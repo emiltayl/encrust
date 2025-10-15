@@ -55,7 +55,7 @@ pub fn encrust_vec(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as LiteralVec).generate_output_tokens()
 }
 
-/// Read the contents of a file into a String and encrust it so the actual file contents is
+/// Read the contents of a file into a string and encrust it so the actual file contents is
 /// obfuscated before being included in the binary.
 ///
 /// Unless an absolute path is given, the file is read relative to the `CARGO_MANIFEST_DIR`
