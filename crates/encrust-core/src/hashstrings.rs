@@ -3,11 +3,15 @@
 //! Macros are used to make it possible to ensure that the plain text is not present in the
 //! executable, see the documentation for [`encrust`] for examples of macro usage.
 
+// Note that items in this crate are behind `#[cfg(feature = "hashstrings")]` to ensure that the
+// generated documentation can display that the types require having the "hashstrings" feature
+// enabled.
+
 use rapidhash::v3::{RapidSecrets, rapidhash_v3_seeded};
 use zeroize::Zeroize;
 
 /// Used to specify whether a [`Hashstring`] should ignore case when comparing strings.
-#[cfg_attr(docsrs, doc(cfg(feature = "hashstrings")))]
+#[cfg(feature = "hashstrings")]
 pub enum Sensitivity {
     /// Ignore case when comparing strings.
     CaseInsensitive,
@@ -31,13 +35,14 @@ pub enum Sensitivity {
 /// assert!(case_insensitive_hashstring == "A string");
 /// assert!(case_insensitive_hashstring == "a string");
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "hashstrings")))]
+#[cfg(feature = "hashstrings")]
 pub struct Hashstring {
     value: u64,
     seed: u64,
     sensitivity: Sensitivity,
 }
 
+#[cfg(feature = "hashstrings")]
 impl Hashstring {
     /// Create a new [`Hashstring`] using the provided string and random seed.
     ///
@@ -70,7 +75,6 @@ impl Hashstring {
     /// Used by the macros to get the hash value to create `Hashstring` from raw data.
     /// Should not be used outside of the provided macros.
     #[doc(hidden)]
-    #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
     #[cfg(feature = "macros")]
     pub fn get_raw_value(&self) -> u64 {
         self.value
@@ -79,7 +83,6 @@ impl Hashstring {
     /// Used by the macros to create `Hashstring` from raw data.
     /// Should not be used outside of the provided macros.
     #[doc(hidden)]
-    #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
     #[cfg(feature = "macros")]
     pub fn new_from_raw_value(value: u64, seed: u64, sensitivity: Sensitivity) -> Self {
         Self {
@@ -90,6 +93,7 @@ impl Hashstring {
     }
 }
 
+#[cfg(feature = "hashstrings")]
 impl PartialEq<&str> for Hashstring {
     fn eq(&self, other: &&str) -> bool {
         let seed = RapidSecrets::seed_cpp(self.seed);
@@ -115,12 +119,13 @@ impl PartialEq<&str> for Hashstring {
 /// assert!(hashbytes == &[1, 2, 3]);
 /// assert!(hashbytes != &[4, 5, 6]);
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "hashstrings")))]
+#[cfg(feature = "hashstrings")]
 pub struct Hashbytes {
     value: u64,
     seed: u64,
 }
 
+#[cfg(feature = "hashstrings")]
 impl Hashbytes {
     /// Create a new [`Hashbytes`] using the provided `u8` slice and random seed.
     ///
@@ -136,7 +141,6 @@ impl Hashbytes {
     /// Used by the macros to get the hash value to create `Hashbytes` from raw data.
     /// Should not be used outside of the provided macros.
     #[doc(hidden)]
-    #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
     #[cfg(feature = "macros")]
     pub fn get_raw_value(&self) -> u64 {
         self.value
@@ -145,13 +149,13 @@ impl Hashbytes {
     /// Used by the macros to create `Hashbytes` from raw data.
     /// Should not be used outside of the provided macros.
     #[doc(hidden)]
-    #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
     #[cfg(feature = "macros")]
     pub fn new_from_raw_value(value: u64, seed: u64) -> Self {
         Self { value, seed }
     }
 }
 
+#[cfg(feature = "hashstrings")]
 impl PartialEq<&[u8]> for Hashbytes {
     fn eq(&self, other: &&[u8]) -> bool {
         let rapid_secrets = RapidSecrets::seed_cpp(self.seed);

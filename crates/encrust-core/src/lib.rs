@@ -62,7 +62,6 @@ where
     /// Using this may cause data to be scrambled in unpredictable ways that could lead to safety
     /// issues. This should not be used manually, but only through the provided macros.
     #[doc(hidden)]
-    #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
     #[cfg(feature = "macros")]
     pub const unsafe fn from_encrusted_data(data: T, seed: u64) -> Self {
         Self { data, seed }

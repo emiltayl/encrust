@@ -27,8 +27,6 @@ std = ["rand/std", "rapidhash?/std", "zeroize/std"]
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg", "docsrs"]
-cargo-args = ["--no-deps"]
 
 [lints]
 workspace = true
