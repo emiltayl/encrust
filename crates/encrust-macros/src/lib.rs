@@ -31,7 +31,6 @@ use crate::{
 /// assert_eq!(&[1i32, 2i32, 3i32], array.decrust().as_slice());
 /// ```
 #[proc_macro]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as Literal).generate_output_tokens()
 }
@@ -50,7 +49,6 @@ pub fn encrust(input: TokenStream) -> TokenStream {
 /// );
 /// ```
 #[proc_macro]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust_vec(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as LiteralVec).generate_output_tokens()
 }
@@ -70,7 +68,6 @@ pub fn encrust_vec(input: TokenStream) -> TokenStream {
 /// let mut cargo_toml = encrust_file_string!("Cargo.toml");
 /// ```
 #[proc_macro]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust_file_string(input: TokenStream) -> TokenStream {
     StringFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
 }
@@ -90,7 +87,6 @@ pub fn encrust_file_string(input: TokenStream) -> TokenStream {
 /// let mut cargo_toml = encrust_file_bytes!("Cargo.toml");
 /// ```
 #[proc_macro]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn encrust_file_bytes(input: TokenStream) -> TokenStream {
     BytesFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
 }
@@ -108,8 +104,6 @@ pub fn encrust_file_bytes(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 #[cfg(feature = "hashstrings")]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
-#[cfg_attr(docsrs, doc(cfg(feature = "hashstrings")))]
 pub fn hashstring(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as ToHashString).generate_output_tokens_case_sensitive()
 }
@@ -126,8 +120,6 @@ pub fn hashstring(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 #[cfg(feature = "hashstrings")]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
-#[cfg_attr(docsrs, doc(cfg(feature = "hashstrings")))]
 pub fn hashstring_ci(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as ToHashString).generate_output_tokens_case_insensitive()
 }
@@ -144,8 +136,6 @@ pub fn hashstring_ci(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 #[cfg(feature = "hashstrings")]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
-#[cfg_attr(docsrs, doc(cfg(feature = "hashstrings")))]
 pub fn hashbytes(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as ToHashBytes).generate_output_tokens()
 }
@@ -154,7 +144,6 @@ pub fn hashbytes(input: TokenStream) -> TokenStream {
 ///
 /// This requires that all fields are `Encrustable`. Currently, no other options are available.
 #[proc_macro_derive(Encrustable)]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub fn derive_encrustable_macro(input: TokenStream) -> TokenStream {
     derive::derive_encrustable(parse_macro_input!(input as syn::DeriveInput))
 }

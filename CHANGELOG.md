@@ -1,5 +1,12 @@
 # Unreleased
 
+# Version 0.3.1 and 0.3.2 - 2025-11-27
+* Remove configuration and annotations that are no longer needed to generate documentation.
+  Information about required feature flags are now added automatically.
+* Added `#[cfg(feature = "hashstrings")]` to types in the `hashstrings` module of `encrust-core`.
+  This was done to include information about the required `hashstrings` feature to use types defined
+  in the `hashstrings` module.
+
 # Version 0.3.0 - 2025-10-15
 
 * Set a fixed seed for tests to make the tests deterministic. There are still some randomness in the

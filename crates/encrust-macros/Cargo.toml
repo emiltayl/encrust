@@ -17,7 +17,7 @@ proc-macro = true
 zeroize = "1.6.0"
 
 [dependencies]
-encrust-core = { path = "../encrust-core", version = "0.3.1" }
+encrust-core = { path = "../encrust-core", version = "0.3.2" }
 proc-macro2 = "1.0.67"
 quote = "1.0.33"
 rand = "0.9.0"
@@ -30,8 +30,6 @@ std = []
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg", "docsrs"]
-cargo-args = ["--no-deps"]
 
 [lints]
 workspace = true
