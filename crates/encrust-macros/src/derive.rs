@@ -5,7 +5,7 @@ use syn::{
     spanned::Spanned,
 };
 
-pub fn derive_encrustable(input: DeriveInput) -> TokenStream {
+pub fn derive_encrust(input: DeriveInput) -> TokenStream {
     // Code copied from:
     // https://github.com/dtolnay/syn/blob/3da56a712abf7933b91954dbfb5708b452f88504/examples/heapsize/heapsize_derive/src/lib.rs
     // https://github.com/RustCrypto/utils/blob/72505ea620ee4d557a68372b6ba44a87f7d2ab1b/zeroize/derive/src/lib.rs
@@ -14,11 +14,11 @@ pub fn derive_encrustable(input: DeriveInput) -> TokenStream {
     let generics = add_trait_bounds(input.generics);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let encrypatble_impl = gen_encrustable_impl(&input.data);
+    let encrypatble_impl = gen_encrust_impl(&input.data);
 
     quote! {
         #[doc(hidden)]
-        impl #impl_generics ::encrust_core::Encrustable for #name #ty_generics #where_clause  {
+        impl #impl_generics ::encrust_core::Encrust for #name #ty_generics #where_clause  {
             unsafe fn toggle_encrust(&mut self, encruster: &mut impl ::rand::RngCore) {
                 #encrypatble_impl
             }
@@ -32,13 +32,13 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
         if let GenericParam::Type(ref mut type_param) = *param {
             type_param
                 .bounds
-                .push(parse_quote!(::encrust_core::Encrustable));
+                .push(parse_quote!(::encrust_core::Encrust));
         }
     }
     generics
 }
 
-fn gen_encrustable_impl(data: &Data) -> proc_macro2::TokenStream {
+fn gen_encrust_impl(data: &Data) -> proc_macro2::TokenStream {
     match data {
         Data::Struct(struct_data) => gen_struct_fields_calls(&struct_data.fields),
         Data::Enum(enum_data) => {
@@ -49,7 +49,7 @@ fn gen_encrustable_impl(data: &Data) -> proc_macro2::TokenStream {
             }}
         }
 
-        Data::Union(_) => quote! { compile_error!("`Encrustable` does not support unions.");},
+        Data::Union(_) => quote! { compile_error!("`Encrust` does not support unions.");},
     }
 }
 
@@ -61,7 +61,7 @@ fn gen_struct_fields_calls(fields: &Fields) -> proc_macro2::TokenStream {
 
                 quote_spanned! {field.span()=>
                     unsafe {
-                        ::encrust_core::Encrustable::toggle_encrust(&mut self.#name, encruster);
+                        ::encrust_core::Encrust::toggle_encrust(&mut self.#name, encruster);
                     }
                 }
             });
@@ -79,7 +79,7 @@ fn gen_struct_fields_calls(fields: &Fields) -> proc_macro2::TokenStream {
 
                     quote_spanned! {field.span()=>
                         unsafe {
-                            ::encrust_core::Encrustable::toggle_encrust(&mut self.#index, encruster);
+                            ::encrust_core::Encrust::toggle_encrust(&mut self.#index, encruster);
                         }
                     }
                 });
@@ -102,7 +102,7 @@ fn gen_variant_fields_calls(variant: &Variant) -> proc_macro2::TokenStream {
 
                 quote_spanned! {field.span()=>
                     unsafe {
-                        ::encrust_core::Encrustable::toggle_encrust(#name, encruster);
+                        ::encrust_core::Encrust::toggle_encrust(#name, encruster);
                     }
                 }
             });
@@ -131,7 +131,7 @@ fn gen_variant_fields_calls(variant: &Variant) -> proc_macro2::TokenStream {
 
                     quote_spanned! {field.span()=>
                         unsafe {
-                            ::encrust_core::Encrustable::toggle_encrust(#ident, encruster);
+                            ::encrust_core::Encrust::toggle_encrust(#ident, encruster);
                         }
                     }
                 });

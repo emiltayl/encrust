@@ -1,4 +1,4 @@
-use encrust_core::{Encrustable, Hashbytes, Hashstring, Sensitivity};
+use encrust_core::{Encrust, Hashbytes, Hashstring, Sensitivity};
 use proc_macro2::Span;
 use quote::{quote, quote_spanned};
 use rand::{RngCore, SeedableRng, rngs::SmallRng};

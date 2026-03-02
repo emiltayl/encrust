@@ -24,14 +24,14 @@ use std::ops::{Deref, DerefMut};
 use rand::{RngCore, SeedableRng, rngs::SmallRng};
 use zeroize::Zeroize;
 
-/// Container struct for encrust, accepting [`Encrustable`] + `Zeroize` types for obfuscation and
+/// Container struct for encrust, accepting [`Encrust`] + `Zeroize` types for obfuscation and
 /// deobfuscation when needed.
 ///
 /// Care should be taken if `T` has a non-trivial `Drop` implementation, as `T` is not dropped until
 /// `zeroize` has been called on it.
 pub struct Encrusted<T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
     data: T,
     seed: u64,
@@ -39,9 +39,9 @@ where
 
 impl<T> Encrusted<T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
-    /// Accepts [`Encrustable`] + `Zeroize` data and obfuscates it using the provided seed.
+    /// Accepts [`Encrust`] + `Zeroize` data and obfuscates it using the provided seed.
     pub fn new(mut data: T, seed: u64) -> Self {
         let mut encrust_rng = SmallRng::seed_from_u64(seed);
 
@@ -99,7 +99,7 @@ where
 
 impl<T> Drop for Encrusted<T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
     /// [`Encrusted`]'s drop implementation calls zeroize on the underlying data including the seed
     /// to prevent secrets from staying in memory when they are no longer needed.
@@ -117,14 +117,14 @@ where
 /// When the `Decrusted` object is dropped, the underlying data is re-obfuscated.
 pub struct Decrusted<'decrusted, T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
     encrusted_data: &'decrusted mut Encrusted<T>,
 }
 
 impl<'decrusted, T> Decrusted<'decrusted, T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
     fn new(encrusted_data: &'decrusted mut Encrusted<T>) -> Self {
         let mut decruster = SmallRng::seed_from_u64(encrusted_data.seed);
@@ -142,7 +142,7 @@ where
 
 impl<T> Drop for Decrusted<'_, T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
     fn drop(&mut self) {
         let mut encrust_rng = SmallRng::seed_from_u64(self.encrusted_data.seed);
@@ -159,7 +159,7 @@ where
 
 impl<T> Deref for Decrusted<'_, T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
     type Target = T;
 
@@ -170,7 +170,7 @@ where
 
 impl<T> DerefMut for Decrusted<'_, T>
 where
-    T: Encrustable + Zeroize,
+    T: Encrust + Zeroize,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.encrusted_data.data
@@ -179,7 +179,7 @@ where
 
 /// Trait required to use data types with encrust. If it is avoidable, do not implement this
 /// manually, but use the derive macro to generate the implementation.
-pub trait Encrustable {
+pub trait Encrust {
     /// Called when obfuscating and deobfuscating data. Calling this function manually may lead to
     /// safety issues and should not be done.
     ///
@@ -190,10 +190,10 @@ pub trait Encrustable {
     unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore);
 }
 
-macro_rules! encrustable_number {
+macro_rules! encrust_int {
     ( $( $t:ty ),* ) => {
         $(
-            impl Encrustable for $t {
+            impl Encrust for $t {
                 unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl ::rand::RngCore) {
                     let mut bytes = self.to_le_bytes();
 
@@ -214,11 +214,11 @@ macro_rules! encrustable_number {
     };
 }
 
-encrustable_number!(
+encrust_int!(
     u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize
 );
 
-impl Encrustable for String {
+impl Encrust for String {
     unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
         // Safety: This modifies the underlying bytes directly, which is unsafe. However, the
         // changes are reverted before granting access to the underlying memory again.
@@ -236,9 +236,9 @@ impl Encrustable for String {
     }
 }
 
-impl<T, const N: usize> Encrustable for [T; N]
+impl<T, const N: usize> Encrust for [T; N]
 where
-    T: Encrustable,
+    T: Encrust,
 {
     unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
         for element in self {
@@ -251,9 +251,9 @@ where
     }
 }
 
-impl<T> Encrustable for Vec<T>
+impl<T> Encrust for Vec<T>
 where
-    T: Encrustable,
+    T: Encrust,
 {
     unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
         for element in self {

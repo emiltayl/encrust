@@ -1,5 +1,9 @@
 # Unreleased
 
+## Changed
+* Changed the name of the `Encrustable` trait to `Encrust` to align the name better with usual
+  naming of traits in Rust.
+
 # Version 0.3.1 and 0.3.2 - 2025-11-27
 * Remove configuration and annotations that are no longer needed to generate documentation.
   Information about required feature flags are now added automatically.

@@ -142,8 +142,8 @@ pub fn hashbytes(input: TokenStream) -> TokenStream {
 
 /// Derive macro to allow custom `struct`s and `enum`s to be encrusted.
 ///
-/// This requires that all fields are `Encrustable`. Currently, no other options are available.
-#[proc_macro_derive(Encrustable)]
-pub fn derive_encrustable_macro(input: TokenStream) -> TokenStream {
-    derive::derive_encrustable(parse_macro_input!(input as syn::DeriveInput))
+/// This requires that all fields are `Encrust`. Currently, no other options are available.
+#[proc_macro_derive(Encrust)]
+pub fn derive_encrust_macro(input: TokenStream) -> TokenStream {
+    derive::derive_encrust(parse_macro_input!(input as syn::DeriveInput))
 }

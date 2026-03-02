@@ -11,13 +11,13 @@ feature to be enabled, which it is by default.
 
 ## Example usage
 ```rust
-use encrust::{Encrustable, Encrusted};
+use encrust::{Encrust, Encrusted};
 use rand::RngCore;
 use zeroize::Zeroize;
 
 // Data types used with encrust must implement Zeroize to make sure data
 // does not linger in memory after use.
-#[derive(Encrustable, Zeroize)]
+#[derive(Encrust, Zeroize)]
 struct SecretData (String, u64, Vec<u8>);
 
 let mut rng = rand::rng();

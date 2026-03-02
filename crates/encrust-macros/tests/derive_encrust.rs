@@ -1,13 +1,13 @@
-//! Tests for the derive `Encrustable` macro.
+//! Tests for the derive `Encrust` macro.
 
-use encrust_core::Encrustable;
+use encrust_core::Encrust;
 use encrust_macros::*;
 use rand::{SeedableRng, rngs::SmallRng};
 use zeroize::Zeroize;
 
 const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";
 
-#[derive(Clone, Debug, Encrustable, PartialEq, Zeroize)]
+#[derive(Clone, Debug, Encrust, PartialEq, Zeroize)]
 struct Named {
     byte: u8,
     int: i32,
@@ -16,13 +16,13 @@ struct Named {
     string: String,
 }
 
-#[derive(Clone, Debug, Encrustable, PartialEq, Zeroize)]
+#[derive(Clone, Debug, Encrust, PartialEq, Zeroize)]
 struct Tuple(u8, i32, [u16; 7], Vec<i8>, String);
 
-#[derive(Encrustable, Zeroize)]
+#[derive(Encrust, Zeroize)]
 struct _Unit;
 
-#[derive(Clone, Debug, Encrustable, PartialEq, Zeroize)]
+#[derive(Clone, Debug, Encrust, PartialEq, Zeroize)]
 enum NamedOrTuple {
     Named {
         byte: u8,
@@ -36,8 +36,8 @@ enum NamedOrTuple {
 }
 
 // Some bounds to check that bounds generation in the derive macro works
-#[derive(Clone, Debug, Encrustable, PartialEq, Zeroize)]
-struct Generic<T, U: PartialEq, P: Encrustable>(T, U, P);
+#[derive(Clone, Debug, Encrust, PartialEq, Zeroize)]
+struct Generic<T, U: PartialEq, P: Encrust>(T, U, P);
 
 fn gen_seed() -> u64 {
     0x2357_bd11_1317_1d1f
