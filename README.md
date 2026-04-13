@@ -42,7 +42,7 @@ let mut hidden_string = encrust!("This string will not appear as-is in the execu
 let mut hidden_number = encrust!(0xabc123u32);
 
 {
-    // "Decrusted" implement Deref and DerefMut to the underlying data
+    // "DecrustGuard" implements Deref and DerefMut to the underlying data
     let string = hidden_string.decrust();
     let number = hidden_number.decrust();
 

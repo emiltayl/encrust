@@ -25,6 +25,7 @@
   * `Encrust` is no longer implemented for arrays and `Vec`s of types that implement `Encrust`.
     Instead, the arrays and `Vec`s must now be of types that implement the new trait
     `InPlaceEncrust`.
+* Renamed `Decrusted` to `DecrustGuard`.
 * MSRV changed from 1.85 to 1.87.
 
 ## Added

@@ -81,10 +81,10 @@ where
         <T as Encrust>::toggle_encrust(&mut self.data, &mut encrust_rng);
     }
 
-    /// Deobfuscates the data contained in [`Encrusted`] and returns a [`Decrusted`] object that can
+    /// Deobfuscates the data contained in [`Encrusted`] and returns a [`DecrustGuard`] object that can
     /// be used to access and modify the actual data.
-    pub fn decrust(&mut self) -> Decrusted<'_, T> {
-        Decrusted::new(self)
+    pub fn decrust(&mut self) -> DecrustGuard<'_, T> {
+        DecrustGuard::new(self)
     }
 }
 
@@ -104,10 +104,10 @@ where
     }
 }
 
-/// Type used to access encrusted data. Use [`Encrusted::decrust`] to create `Decrusted` data.
+/// Type used to access encrusted data. Use [`Encrusted::decrust`] to create `DecrustGuard` data.
 ///
-/// When the `Decrusted` object is dropped, the underlying data is re-obfuscated.
-pub struct Decrusted<'decrusted, T>
+/// When the `DecrustGuard` object is dropped, the underlying data is re-obfuscated.
+pub struct DecrustGuard<'decrusted, T>
 where
     T: Encrust,
     T::Storage: Zeroize,
@@ -115,7 +115,7 @@ where
     encrusted_data: &'decrusted mut Encrusted<T>,
 }
 
-impl<'decrusted, T> Decrusted<'decrusted, T>
+impl<'decrusted, T> DecrustGuard<'decrusted, T>
 where
     T: Encrust,
     T::Storage: Zeroize,
@@ -129,7 +129,7 @@ where
     }
 }
 
-impl<T> Drop for Decrusted<'_, T>
+impl<T> Drop for DecrustGuard<'_, T>
 where
     T: Encrust,
     T::Storage: Zeroize,
@@ -141,7 +141,7 @@ where
     }
 }
 
-impl<T> Deref for Decrusted<'_, T>
+impl<T> Deref for DecrustGuard<'_, T>
 where
     T: Encrust,
     T::Storage: Zeroize,
@@ -149,18 +149,18 @@ where
     type Target = T::Ref;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `Decrusted::new`.
+        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `DecrustGuard::new`.
         unsafe { <T as Encrust>::as_ref(&self.encrusted_data.data) }
     }
 }
 
-impl<T> DerefMut for Decrusted<'_, T>
+impl<T> DerefMut for DecrustGuard<'_, T>
 where
     T: Encrust,
     T::Storage: Zeroize,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `Decrusted::new`.
+        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `DecrustGuard::new`.
         unsafe { <T as Encrust>::as_mut_ref(&mut self.encrusted_data.data) }
     }
 }
@@ -179,7 +179,7 @@ pub trait Encrust {
     /// implementation of `Encrust` sets `Storage` to `Vec<u8>`.
     type Storage;
 
-    /// The type used to access encrusted data. This is the type `Decrusted` sets as the `Target`
+    /// The type used to access encrusted data. This is the type `DecrustGuard` sets as the `Target`
     /// for its `Deref` and `DerefMut` implementations.
     ///
     /// `Vec` sets `Ref` to a slice of the underlying data to prevent accidentally pushing data to
@@ -190,7 +190,7 @@ pub trait Encrust {
     /// Convert `self` to `Self::Storage` for storage in `Encrusted`.
     fn to_storage(self) -> Self::Storage;
 
-    /// Return a reference to `Self::Ref` from `Self::Storage`. This is essentially `Decrusted`'s
+    /// Return a reference to `Self::Ref` from `Self::Storage`. This is essentially `DecrustGuard`'s
     /// `Deref` implementation.
     ///
     /// # Safety
@@ -199,7 +199,7 @@ pub trait Encrust {
     unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref;
 
     /// Return a mutable reference to `Self::Ref` from `Self::Storage`. This is essentially
-    /// `Decrusted`'s `DerefMut` implementation.
+    /// `DecrustGuard`'s `DerefMut` implementation.
     ///
     /// # Safety
     /// This function must never be called when `storage` is encrusted. Calling `as_ref` on
