@@ -82,25 +82,6 @@ impl Parse for Literal {
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
-pub struct LiteralVec(pub Vec<Literal>);
-
-impl Parse for LiteralVec {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut vec = Vec::new();
-
-        while !input.is_empty() {
-            vec.push(input.parse()?);
-
-            if !input.is_empty() {
-                input.parse::<Token![,]>()?;
-            }
-        }
-
-        Ok(Self(vec))
-    }
-}
-
 pub struct FilePath {
     pub path: PathBuf,
     pub span: Span,
@@ -230,15 +211,6 @@ mod tests {
         let literal = syn::parse_str::<Literal>("[1u8,2u8,3u8]").expect("Unable to parse literal");
         assert_eq!(
             Literal::Array(vec![Literal::U8(1u8), Literal::U8(2u8), Literal::U8(3u8)]),
-            literal
-        );
-    }
-
-    #[test]
-    fn parse_vec() {
-        let literal = syn::parse_str::<LiteralVec>("1u8,2u8,3u8").expect("Unable to parse literal");
-        assert_eq!(
-            LiteralVec(vec![Literal::U8(1u8), Literal::U8(2u8), Literal::U8(3u8)]),
             literal
         );
     }

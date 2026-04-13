@@ -24,9 +24,8 @@ rand = "0.9.0"
 syn = { version = "2.0.33", default-features = false, features = ["derive", "parsing", "printing", "proc-macro"] }
 
 [features]
-default = ["hashstrings", "std"]
+default = ["hashstrings"]
 hashstrings = []
-std = []
 
 [package.metadata.docs.rs]
 all-features = true

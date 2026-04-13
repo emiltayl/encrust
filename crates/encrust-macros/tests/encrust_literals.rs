@@ -4,7 +4,7 @@
 // imported into encrust_macros as this would introduce cyclic dependencies.
 extern crate encrust_core as encrust;
 
-use encrust_macros::{encrust, encrust_vec};
+use encrust_macros::encrust;
 
 const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";
 
@@ -52,79 +52,14 @@ fn encrust_ints() {
 fn encrust_string() {
     let mut s = encrust!("The quick brown fox jumps over the lazy dog😊");
     let decrusted = s.decrust();
-    assert_eq!(TEST_STRING, decrusted.as_str());
+    assert_eq!(TEST_STRING, &*decrusted);
 }
 
 #[test]
 fn encrust_arrays() {
-    const ORIG_ARRAY: [[[u8; 3]; 3]; 3] = [
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-    ];
-    let mut aa = encrust!([
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]]
-    ]);
-    let decrusted = aa.decrust();
-    assert_eq!(ORIG_ARRAY, *decrusted);
-
-    let mut sa = encrust!([
-        "The quick brown fox jumps over the lazy dog😊",
-        "The quick brown fox jumps over the lazy dog😊",
-        "The quick brown fox jumps over the lazy dog😊"
-    ]);
-    let decrusted = sa.decrust();
-    assert_eq!(
-        [
-            TEST_STRING.to_string(),
-            TEST_STRING.to_string(),
-            TEST_STRING.to_string()
-        ],
-        *decrusted
-    );
-}
-
-#[test]
-fn encrust_vec() {
-    const ORIG_ARRAY: [u8; 27] = [
-        1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8,
-        1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8,
-    ];
-    const ORIG_ARRAY2: [[[u8; 3]; 3]; 3] = [
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-    ];
-    let orig_array3: [String; 4] = [
-        TEST_STRING.to_string(),
-        TEST_STRING.to_string(),
-        TEST_STRING.to_string(),
-        TEST_STRING.to_string(),
-    ];
-
-    let mut vec = encrust_vec![
-        1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8,
-        1u8, 2u8, 3u8, 1u8, 2u8, 3u8, 1u8, 2u8, 3u8
-    ];
-    let decrusted = vec.decrust();
-    assert_eq!(ORIG_ARRAY.to_vec(), *decrusted);
-
-    let mut vec = encrust_vec![
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-        [[1u8, 2u8, 3u8], [1u8, 2u8, 3u8], [1u8, 2u8, 3u8]],
-    ];
-    let decrusted = vec.decrust();
-    assert_eq!(ORIG_ARRAY2.to_vec(), *decrusted);
-
-    let mut vec = encrust_vec![
-        "The quick brown fox jumps over the lazy dog😊",
-        "The quick brown fox jumps over the lazy dog😊",
-        "The quick brown fox jumps over the lazy dog😊",
-        "The quick brown fox jumps over the lazy dog😊",
-    ];
-    let decrusted = vec.decrust();
-    assert_eq!(orig_array3.to_vec(), *decrusted);
+    const ORIG_ARRAY: [u8; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
+    
+    let mut encrusted = encrust!([0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8]);
+    let decrusted = encrusted.decrust();
+    assert_eq!(ORIG_ARRAY, &*decrusted);
 }

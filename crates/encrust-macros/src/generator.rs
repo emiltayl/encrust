@@ -3,7 +3,7 @@ use proc_macro2::Span;
 use quote::{quote, quote_spanned};
 use rand::{RngCore, SeedableRng, rngs::SmallRng};
 
-use crate::parser::{FilePath, Literal, LiteralVec, ToHashBytes, ToHashString};
+use crate::parser::{FilePath, Literal, ToHashBytes, ToHashString};
 
 #[derive(Debug)]
 pub struct TokenStreamError {
@@ -23,17 +23,17 @@ pub trait ToEncrustedTokenStream {
     fn to_token_stream(
         &self,
         encruster: &mut impl RngCore,
-    ) -> Result<proc_macro2::TokenStream, TokenStreamError>;
+    ) -> Result<(proc_macro2::TokenStream, proc_macro2::TokenStream), TokenStreamError>;
 
     fn generate_output_tokens(&self) -> proc_macro::TokenStream {
         let seed = rand::rng().next_u64();
         let mut encruster = SmallRng::seed_from_u64(seed);
 
         match self.to_token_stream(&mut encruster) {
-            Ok(token_stream) => quote! {
+            Ok((type_stream, value_stream)) => quote! {
                 unsafe {
-                    ::encrust::Encrusted::from_encrusted_data(
-                        #token_stream,
+                    ::encrust::Encrusted::<#type_stream>::from_encrusted_data(
+                        #value_stream,
                         #seed
                     )
                 }
@@ -50,14 +50,10 @@ pub trait ToEncrustedTokenStream {
 }
 
 macro_rules! number_to_token_stream {
-    ($num:ident, $encruster:ident) => {{
+    ($ty:ty, $num:ident, $encruster:ident) => {{
         let mut n = *$num;
-        // Safety: The underlying data must be encrusted to be used with `from_encrusted_data`.
-        // It should not be exposed without calling `toggle_encrust` again.
-        unsafe {
-            n.toggle_encrust($encruster);
-        }
-        quote! {#n}
+        <$ty as Encrust>::toggle_encrust(&mut n, $encruster);
+        (quote! {$ty}, quote! {#n})
     }};
 }
 
@@ -65,59 +61,38 @@ impl ToEncrustedTokenStream for Literal {
     fn to_token_stream(
         &self,
         encruster: &mut impl RngCore,
-    ) -> Result<proc_macro2::TokenStream, TokenStreamError> {
+    ) -> Result<(proc_macro2::TokenStream, proc_macro2::TokenStream), TokenStreamError> {
         Ok(match self {
-            Self::U8(n) => number_to_token_stream!(n, encruster),
-            Self::U16(n) => number_to_token_stream!(n, encruster),
-            Self::U32(n) => number_to_token_stream!(n, encruster),
-            Self::U64(n) => number_to_token_stream!(n, encruster),
-            Self::U128(n) => number_to_token_stream!(n, encruster),
-            Self::Usize(n) => number_to_token_stream!(n, encruster),
-            Self::I8(n) => number_to_token_stream!(n, encruster),
-            Self::I16(n) => number_to_token_stream!(n, encruster),
-            Self::I32(n) => number_to_token_stream!(n, encruster),
-            Self::I64(n) => number_to_token_stream!(n, encruster),
-            Self::I128(n) => number_to_token_stream!(n, encruster),
-            Self::Isize(n) => number_to_token_stream!(n, encruster),
+            Self::U8(n) => number_to_token_stream!(u8, n, encruster),
+            Self::U16(n) => number_to_token_stream!(u16, n, encruster),
+            Self::U32(n) => number_to_token_stream!(u32, n, encruster),
+            Self::U64(n) => number_to_token_stream!(u64, n, encruster),
+            Self::U128(n) => number_to_token_stream!(u128, n, encruster),
+            Self::Usize(n) => number_to_token_stream!(usize, n, encruster),
+            Self::I8(n) => number_to_token_stream!(i8, n, encruster),
+            Self::I16(n) => number_to_token_stream!(i16, n, encruster),
+            Self::I32(n) => number_to_token_stream!(i32, n, encruster),
+            Self::I64(n) => number_to_token_stream!(i64, n, encruster),
+            Self::I128(n) => number_to_token_stream!(i128, n, encruster),
+            Self::Isize(n) => number_to_token_stream!(isize, n, encruster),
             Self::String(s) => {
-                let mut string = s.clone();
-
-                // Safety: The underlying data must be encrusted to be used with
-                // `from_encrusted_data`. It should not be exposed without calling `toggle_encrust`
-                // again.
-                unsafe {
-                    string.toggle_encrust(encruster);
-                }
-
-                let bytes = Vec::from(string.as_bytes());
-
-                #[cfg(feature = "std")]
-                quote! {unsafe { ::std::string::String::from_utf8_unchecked([#(#bytes),*].to_vec()) }}
-                #[cfg(not(feature = "std"))]
-                quote! {unsafe { ::alloc::string::String::from_utf8_unchecked([#(#bytes),*].to_vec()) }}
+                let mut bytes = s.as_bytes().to_vec();
+                <String as Encrust>::toggle_encrust(&mut bytes, encruster);
+                (quote! { String }, quote! { vec![#(#bytes),*] })
             }
             Self::Array(arr) => {
                 let encrusted_items = arr
                     .iter()
                     .map(|el| el.to_token_stream(encruster))
-                    .collect::<Result<Vec<proc_macro2::TokenStream>, TokenStreamError>>()?;
-                quote! {[#(#encrusted_items),*]}
+                    .collect::<Result<Vec<(proc_macro2::TokenStream, proc_macro2::TokenStream)>, TokenStreamError>>()?;
+
+                let encrusted_values: Vec<proc_macro2::TokenStream> = encrusted_items.into_iter().map(|(_, val)| val).collect();
+                let len = encrusted_values.len();
+
+                // TODO what happens with invalid arrays (different types)?
+                (quote! { [_; #len] }, quote! {[#(#encrusted_values),*]})
             }
         })
-    }
-}
-
-impl ToEncrustedTokenStream for LiteralVec {
-    fn to_token_stream(
-        &self,
-        encruster: &mut impl RngCore,
-    ) -> Result<proc_macro2::TokenStream, TokenStreamError> {
-        let encrusted_items = self
-            .0
-            .iter()
-            .map(|el| el.to_token_stream(encruster))
-            .collect::<Result<Vec<proc_macro2::TokenStream>, TokenStreamError>>()?;
-        Ok(quote! {[#(#encrusted_items),*].to_vec()})
     }
 }
 
@@ -133,7 +108,7 @@ impl ToEncrustedTokenStream for StringFileReader {
     fn to_token_stream(
         &self,
         encruster: &mut impl RngCore,
-    ) -> Result<proc_macro2::TokenStream, TokenStreamError> {
+    ) -> Result<(proc_macro2::TokenStream, proc_macro2::TokenStream), TokenStreamError> {
         match std::fs::read_to_string(&self.0.path) {
             Ok(s) => Literal::String(s).to_token_stream(encruster),
             Err(error) => Err(TokenStreamError {
@@ -160,7 +135,7 @@ impl ToEncrustedTokenStream for BytesFileReader {
     fn to_token_stream(
         &self,
         encruster: &mut impl RngCore,
-    ) -> Result<proc_macro2::TokenStream, TokenStreamError> {
+    ) -> Result<(proc_macro2::TokenStream, proc_macro2::TokenStream), TokenStreamError> {
         match std::fs::read(&self.0.path) {
             Ok(bytes) => Literal::Array(bytes.into_iter().map(Literal::U8).collect())
                 .to_token_stream(encruster),

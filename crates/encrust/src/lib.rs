@@ -1,5 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
+#![cfg_attr(not(test), no_std)]
 #![doc = include_str!("../README.md")]
 
 #[doc(inline)]

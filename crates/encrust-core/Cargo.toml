@@ -19,11 +19,10 @@ rapidhash = { version = "4.1.0", default-features = false, optional = true }
 rand = { "version" = "0.9.0", default-features = false, features = ["thread_rng"] }
 
 [features]
-all = ["std", "macros", "hashstrings"]
-default = ["std", "macros", "hashstrings"]
+all = ["macros", "hashstrings"]
+default = ["macros", "hashstrings"]
 macros = []
 hashstrings = ["dep:rapidhash"]
-std = ["rand/std", "rapidhash?/std", "zeroize/std"]
 
 [package.metadata.docs.rs]
 all-features = true

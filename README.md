@@ -70,9 +70,7 @@ Encrust has the following feature flags, all enabled by default:
 
 * `hashstrings`: Include functionality to hash strings and byte arrays to search for them without
   including the actual strings / bytes in the executable.
-* `std`: Compile with std. Removing this causes the crate to be built as no_std.
-* `macros`: Include macros used for Derive macro and proc macros for obfuscating values at
-  compile-time.
+* `macros`: Include macros proc macros for obfuscating values at compile-time.
 
 ## License
 

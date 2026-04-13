@@ -1,5 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
+#![cfg_attr(not(test), no_std)]
 
 //! Crate implementing core functionality for `encrust`. See the main crate for documentation.
 
@@ -8,17 +8,17 @@ mod hashstrings;
 #[cfg(feature = "hashstrings")]
 pub use hashstrings::*;
 
-#[cfg(not(feature = "std"))]
+#[cfg(not(test))]
 extern crate core;
 
-#[cfg(not(feature = "std"))]
+#[cfg(not(test))]
 extern crate alloc;
 
-#[cfg(not(feature = "std"))]
+#[cfg(not(test))]
 use alloc::{string::String, vec::Vec};
-#[cfg(not(feature = "std"))]
+#[cfg(not(test))]
 use core::ops::{Deref, DerefMut};
-#[cfg(feature = "std")]
+#[cfg(test)]
 use std::ops::{Deref, DerefMut};
 
 use rand::{RngCore, SeedableRng, rngs::SmallRng};
@@ -31,26 +31,25 @@ use zeroize::Zeroize;
 /// `zeroize` has been called on it.
 pub struct Encrusted<T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
-    data: T,
+    data: T::Storage,
     seed: u64,
 }
 
 impl<T> Encrusted<T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
     /// Accepts [`Encrust`] + `Zeroize` data and obfuscates it using the provided seed.
-    pub fn new(mut data: T, seed: u64) -> Self {
+    pub fn new(data: T, seed: u64) -> Self {
+        let mut data = data.to_storage();
+
         let mut encrust_rng = SmallRng::seed_from_u64(seed);
 
-        // SAFETY:
-        // `Encrusted` takes ownership of the data and only exposes it after calling toggle_encrust
-        // again, ensuring that the underlying data is not accessed in a potential invalid state.
-        unsafe {
-            data.toggle_encrust(&mut encrust_rng);
-        }
+        <T as Encrust>::toggle_encrust(&mut data, &mut encrust_rng);
 
         Self { data, seed }
     }
@@ -63,7 +62,7 @@ where
     /// issues. This should not be used manually, but only through the provided macros.
     #[doc(hidden)]
     #[cfg(feature = "macros")]
-    pub const unsafe fn from_encrusted_data(data: T, seed: u64) -> Self {
+    pub const unsafe fn from_encrusted_data(data: T::Storage, seed: u64) -> Self {
         Self { data, seed }
     }
 
@@ -72,22 +71,14 @@ where
         {
             let mut decruster = SmallRng::seed_from_u64(self.seed);
 
-            // SAFETY:
-            // In order to obfuscate with a new seed, the data needs to be deobfuscated first.
-            unsafe {
-                self.data.toggle_encrust(&mut decruster);
-            }
+            <T as Encrust>::toggle_encrust(&mut self.data, &mut decruster);
         }
 
         self.seed = new_seed;
 
         let mut encrust_rng = SmallRng::seed_from_u64(self.seed);
 
-        // SAFETY:
-        // Obsucate the data again with a new seed.
-        unsafe {
-            self.data.toggle_encrust(&mut encrust_rng);
-        }
+        <T as Encrust>::toggle_encrust(&mut self.data, &mut encrust_rng);
     }
 
     /// Deobfuscates the data contained in [`Encrusted`] and returns a [`Decrusted`] object that can
@@ -99,7 +90,8 @@ where
 
 impl<T> Drop for Encrusted<T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
     /// [`Encrusted`]'s drop implementation calls zeroize on the underlying data including the seed
     /// to prevent secrets from staying in memory when they are no longer needed.
@@ -117,24 +109,21 @@ where
 /// When the `Decrusted` object is dropped, the underlying data is re-obfuscated.
 pub struct Decrusted<'decrusted, T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
     encrusted_data: &'decrusted mut Encrusted<T>,
 }
 
 impl<'decrusted, T> Decrusted<'decrusted, T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
     fn new(encrusted_data: &'decrusted mut Encrusted<T>) -> Self {
         let mut decruster = SmallRng::seed_from_u64(encrusted_data.seed);
 
-        // SAFETY:
-        // This needs to happen to deobfuscate the data for use. Without this, invalid data can
-        // cause problems, such as strings with data that is not valid UTF-8.
-        unsafe {
-            encrusted_data.data.toggle_encrust(&mut decruster);
-        }
+        <T as Encrust>::toggle_encrust(&mut encrusted_data.data, &mut decruster);
 
         Self { encrusted_data }
     }
@@ -142,59 +131,135 @@ where
 
 impl<T> Drop for Decrusted<'_, T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
     fn drop(&mut self) {
         let mut encrust_rng = SmallRng::seed_from_u64(self.encrusted_data.seed);
 
-        // SAFETY:
-        // This needs to happen to obfuscate the data when this object is dropped to ensure that
-        // data does not linger in memory unobfuscated when not needed. Data will not be accessible
-        // without deobfuscating the data, so this should not cause any issues.
-        unsafe {
-            self.encrusted_data.data.toggle_encrust(&mut encrust_rng);
-        }
+        <T as Encrust>::toggle_encrust(&mut self.encrusted_data.data, &mut encrust_rng);
     }
 }
 
 impl<T> Deref for Decrusted<'_, T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
-    type Target = T;
+    type Target = T::Ref;
 
     fn deref(&self) -> &Self::Target {
-        &self.encrusted_data.data
+        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `Decrusted::new`.
+        unsafe { <T as Encrust>::as_ref(&self.encrusted_data.data) }
     }
 }
 
 impl<T> DerefMut for Decrusted<'_, T>
 where
-    T: Encrust + Zeroize,
+    T: Encrust,
+    T::Storage: Zeroize,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.encrusted_data.data
+        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `Decrusted::new`.
+        unsafe { <T as Encrust>::as_mut_ref(&mut self.encrusted_data.data) }
     }
 }
 
-/// Trait required to use data types with encrust. If it is avoidable, do not implement this
-/// manually, but use the derive macro to generate the implementation.
+/// Trait required to use data types with encrust.
+///
+/// For types where `Storage` and `Ref` are `Self` it is preferable to implement [`InPlaceEncrust`]
+/// as it is simpler. This crates has a blanket implementation of `Encrust` for all types that
+/// implement [`InPlaceEncrust`].
 pub trait Encrust {
-    /// Called when obfuscating and deobfuscating data. Calling this function manually may lead to
-    /// safety issues and should not be done.
+    /// The type used to store the encrusted data for the type implementing `Encrust`.
+    ///
+    /// For simple types where any bit pattern is valid data such as plain integers, `Storage` can
+    /// be `Self`. For types with requirements, such as `String` which requires that its data is
+    /// valid UTF-8 at all times, `Storage` must be set to an appropriate type. `String`'s
+    /// implementation of `Encrust` sets `Storage` to `Vec<u8>`.
+    type Storage;
+
+    /// The type used to access encrusted data. This is the type `Decrusted` sets as the `Target`
+    /// for its `Deref` and `DerefMut` implementations.
+    ///
+    /// `Vec` sets `Ref` to a slice of the underlying data to prevent accidentally pushing data to
+    /// the `Vec` as this may relocate the data and leave a copy of the underlying data in memory.
+    /// Similarly, a `String` only provides a `str`.
+    type Ref: ?Sized;
+
+    /// Convert `self` to `Self::Storage` for storage in `Encrusted`.
+    fn to_storage(self) -> Self::Storage;
+
+    /// Return a reference to `Self::Ref` from `Self::Storage`. This is essentially `Decrusted`'s
+    /// `Deref` implementation.
     ///
     /// # Safety
-    /// `toggle_encrust` directly modifies the underlying data in arbitrary ways, possibly making it
-    /// unsafe to use. This function should only ever be called by encrust to obfuscate objects or
-    /// deobfuscate them for reading.
-    unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore);
+    /// This function must never be called when `storage` is encrusted. Calling `as_ref` on
+    /// encrusted data may lead to undefined behavior.
+    unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref;
+
+    /// Return a mutable reference to `Self::Ref` from `Self::Storage`. This is essentially
+    /// `Decrusted`'s `DerefMut` implementation.
+    ///
+    /// # Safety
+    /// This function must never be called when `storage` is encrusted. Calling `as_ref` on
+    /// encrusted data may lead to undefined behavior.
+    unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref;
+
+    /// Called when obfuscating and deobfuscating data.
+    ///
+    /// This function should only be used by the encrust crate to toggle obfuscation state. Do
+    /// **not** call this function manually.
+    ///
+    /// Calling `toggle_encrust` itself should always be safe. However, calling `as_ref` or
+    /// `as_mut_ref` on a value where `toggle_encrust` has been called an odd number of times may
+    /// lead to undefined behavior.
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore);
+}
+
+/// A simpler alternative to [`Encrust`] for types where `Storage` and `Ref` are `Self`.
+///
+/// This crate implements [`Encrust`] for all types that implement `InPlaceEncrust`.
+pub trait InPlaceEncrust {
+    /// Called when obfuscating and deobfuscating data.
+    ///
+    /// `toggle_encrust` must be safe to use, that is, it may not leave `self` in an invalid state
+    /// or otherwise make it unsafe to store or access `self`.
+    ///
+    /// This function should only be used by the encrust crate to toggle obfuscation state. Do
+    /// **not** call this function manually.
+    fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore);
+}
+
+impl<T> Encrust for T
+where
+    T: InPlaceEncrust,
+{
+    type Storage = Self;
+    type Ref = Self;
+
+    fn to_storage(self) -> Self::Storage {
+        self
+    }
+
+    unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref {
+        storage
+    }
+
+    unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref {
+        storage
+    }
+
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+        <T as InPlaceEncrust>::toggle_encrust(storage, encrust_rng);
+    }
 }
 
 macro_rules! encrust_int {
     ( $( $t:ty ),* ) => {
         $(
-            impl Encrust for $t {
-                unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl ::rand::RngCore) {
+            impl InPlaceEncrust for $t {
+                fn toggle_encrust(&mut self, encrust_rng: &mut impl ::rand::RngCore) {
                     let mut bytes = self.to_le_bytes();
 
                     // Using 8 bytes as most numbers that will be used with encrust are (most
@@ -219,15 +284,32 @@ encrust_int!(
 );
 
 impl Encrust for String {
-    unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
-        // Safety: This modifies the underlying bytes directly, which is unsafe. However, the
-        // changes are reverted before granting access to the underlying memory again.
-        let bytes = unsafe { self.as_mut_vec() };
+    type Storage = Vec<u8>;
 
+    type Ref = str;
+
+    fn to_storage(self) -> Self::Storage {
+        self.into_bytes()
+    }
+
+    unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref {
+        // SAFETY: It is up to the caller to ensure that it is safe to access the storage as a
+        // `str`.
+        unsafe { str::from_utf8_unchecked(storage) }
+    }
+
+    unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref {
+        // SAFETY: It is up to the caller to ensure that it is safe to access the storage as a
+        // `str`.
+        unsafe { str::from_utf8_unchecked_mut(storage) }
+    }
+
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+        // TODO possibly replace with <Vec<u8> as Encrust>::toggle_encrust(storage, encrust_rng);?
         // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
         // the tested x86-64 systems.
         let mut key: [u8; 16] = [0; 16];
-        for chunk in bytes.chunks_mut(16) {
+        for chunk in storage.chunks_mut(16) {
             encrust_rng.fill_bytes(&mut key);
             for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
                 *byte ^= byte_key;
@@ -238,30 +320,52 @@ impl Encrust for String {
 
 impl<T, const N: usize> Encrust for [T; N]
 where
-    T: Encrust,
+    T: InPlaceEncrust,
 {
-    unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
-        for element in self {
-            // Safety: This modifies the underlying bytes directly, which is unsafe. However, the
-            // changes are reverted before granting access to the underlying memory again.
-            unsafe {
-                element.toggle_encrust(encrust_rng);
-            }
+    type Storage = Self;
+    type Ref = [T];
+
+    fn to_storage(self) -> Self::Storage {
+        self
+    }
+
+    unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref {
+        storage.as_ref()
+    }
+
+    unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref {
+        storage.as_mut()
+    }
+
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+        for element in storage {
+            element.toggle_encrust(encrust_rng);
         }
     }
 }
 
 impl<T> Encrust for Vec<T>
 where
-    T: Encrust,
+    T: InPlaceEncrust,
 {
-    unsafe fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
-        for element in self {
-            // Safety: This modifies the underlying bytes directly, which is unsafe. However, the
-            // changes are reverted before granting access to the underlying memory again.
-            unsafe {
-                element.toggle_encrust(encrust_rng);
-            }
+    type Storage = Self;
+    type Ref = [T];
+
+    fn to_storage(self) -> Self::Storage {
+        self
+    }
+
+    unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref {
+        storage.as_ref()
+    }
+
+    unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref {
+        storage.as_mut()
+    }
+
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+        for element in storage {
+            element.toggle_encrust(encrust_rng);
         }
     }
 }
@@ -327,14 +431,14 @@ mod tests {
     #[test]
     fn test_strings() {
         let mut encrusted = Encrusted::new(TEST_STRING.to_string(), get_seed());
-        assert_ne!(encrusted.data.as_bytes(), TEST_STRING.as_bytes());
+        assert_ne!(encrusted.data, TEST_STRING.as_bytes());
 
         {
             let decrusted = encrusted.decrust();
-            assert_eq!(*decrusted, TEST_STRING);
+            assert_eq!(&*decrusted, TEST_STRING);
         }
 
-        assert_ne!(encrusted.data.as_bytes(), TEST_STRING.as_bytes());
+        assert_ne!(encrusted.data, TEST_STRING.as_bytes());
     }
 
     #[test]
@@ -342,23 +446,23 @@ mod tests {
         let seed = get_seed();
         let mut encrust_rng = SmallRng::seed_from_u64(seed);
 
-        let mut encrusted_string = TEST_STRING.to_string();
+        let mut encrusted_string = TEST_STRING.to_string().into_bytes();
 
         // Safety: Testing from_encrusted_data requires pre-encrusted data, which is an unsafe
         // operation. The data will not be available without calling `toggle_encrust` again.
         let mut encrusted = unsafe {
-            encrusted_string.toggle_encrust(&mut encrust_rng);
-            Encrusted::from_encrusted_data(encrusted_string, seed)
+            <String as Encrust>::toggle_encrust(&mut encrusted_string, &mut encrust_rng);
+            Encrusted::<String>::from_encrusted_data(encrusted_string, seed)
         };
 
-        assert_ne!(encrusted.data.as_bytes(), TEST_STRING.as_bytes());
+        assert_ne!(encrusted.data, TEST_STRING.as_bytes());
 
         {
             let decrusted = encrusted.decrust();
-            assert_eq!(*decrusted, TEST_STRING);
+            assert_eq!(&*decrusted, TEST_STRING);
         }
 
-        assert_ne!(encrusted.data.as_bytes(), TEST_STRING.as_bytes());
+        assert_ne!(encrusted.data, TEST_STRING.as_bytes());
     }
 
     #[test]
@@ -393,8 +497,8 @@ mod tests {
         // Safety: Testing from_encrusted_data requires pre-encrusted data, which is an unsafe
         // operation. The data will not be available without calling `toggle_encrust` again.
         let mut encrusted = unsafe {
-            encrusted_array.toggle_encrust(&mut encrust_rng);
-            Encrusted::from_encrusted_data(encrusted_array, seed)
+            <[u8; 45] as Encrust>::toggle_encrust(&mut encrusted_array, &mut encrust_rng);
+            Encrusted::<[u8; 45]>::from_encrusted_data(encrusted_array, seed)
         };
 
         assert_ne!(encrusted.data, orig_array);
@@ -433,8 +537,8 @@ mod tests {
         // Safety: Testing from_encrusted_data requires pre-encrusted data, which is an unsafe
         // operation. The data will not be available without calling `toggle_encrust` again.
         let mut encrusted = unsafe {
-            encrusted_vec.toggle_encrust(&mut encrust_rng);
-            Encrusted::from_encrusted_data(encrusted_vec, seed)
+            <Vec<u8> as Encrust>::toggle_encrust(&mut encrusted_vec, &mut encrust_rng);
+            Encrusted::<Vec<u8>>::from_encrusted_data(encrusted_vec, seed)
         };
 
         assert_ne!(encrusted.data, orig_vec);
@@ -473,17 +577,13 @@ mod tests {
         // Safety: Comparing a `String` with invalid UTF-8 in a test should hopefully at worst crash
         // the test.
         let mut test_string = unsafe {
-            Encrusted::from_encrusted_data(
-                String::from_utf8_unchecked(
-                    [
-                        55u8, 10u8, 35u8, 94u8, 130u8, 81u8, 207u8, 225u8, 64u8, 17u8, 143u8, 78u8,
-                        95u8, 204u8, 50u8, 183u8, 54u8, 185u8, 59u8, 50u8, 163u8, 122u8, 131u8,
-                        136u8, 172u8, 79u8, 17u8, 12u8, 56u8, 64u8, 59u8, 173u8, 102u8, 54u8,
-                        184u8, 186u8, 1u8, 246u8, 193u8, 136u8, 220u8, 224u8, 117u8, 144u8, 131u8,
-                        65u8, 77u8,
-                    ]
-                    .to_vec(),
-                ),
+            Encrusted::<String>::from_encrusted_data(
+                vec![
+                    55u8, 10u8, 35u8, 94u8, 130u8, 81u8, 207u8, 225u8, 64u8, 17u8, 143u8, 78u8,
+                    95u8, 204u8, 50u8, 183u8, 54u8, 185u8, 59u8, 50u8, 163u8, 122u8, 131u8, 136u8,
+                    172u8, 79u8, 17u8, 12u8, 56u8, 64u8, 59u8, 173u8, 102u8, 54u8, 184u8, 186u8,
+                    1u8, 246u8, 193u8, 136u8, 220u8, 224u8, 117u8, 144u8, 131u8, 65u8, 77u8,
+                ],
                 #[allow(
                     clippy::unreadable_literal,
                     reason = "Arbitrary number chosen at random with no further meaning."
@@ -493,6 +593,6 @@ mod tests {
         };
 
         let decrusted_test_string = test_string.decrust();
-        assert_eq!(*decrusted_test_string, TEST_STRING);
+        assert_eq!(&*decrusted_test_string, TEST_STRING);
     }
 }

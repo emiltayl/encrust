@@ -19,11 +19,10 @@ rand = "0.9.0"
 zeroize = { version = "1.6.0", features = ["derive"] }
 
 [features]
-all = ["hashstrings", "macros", "std"]
-default = ["hashstrings", "macros", "std"]
+all = ["hashstrings", "macros"]
+default = ["hashstrings", "macros"]
 hashstrings = ["encrust-core/hashstrings", "encrust-macros?/hashstrings"]
 macros = ["dep:encrust-macros", "encrust-core/macros"]
-std = ["encrust-core/std", "encrust-macros?/std"]
 
 [package.metadata.docs.rs]
 all-features = true

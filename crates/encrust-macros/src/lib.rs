@@ -2,7 +2,6 @@
 
 //! Crate implementing macros for `encrust`. See the main crate for documentation.
 
-mod derive;
 mod generator;
 mod parser;
 
@@ -11,7 +10,7 @@ use syn::parse_macro_input;
 
 use crate::{
     generator::{BytesFileReader, StringFileReader, ToEncrustedTokenStream},
-    parser::{FilePath, Literal, LiteralVec, ToHashBytes, ToHashString},
+    parser::{FilePath, Literal, ToHashBytes, ToHashString},
 };
 
 /// Encrust a literal value so the actual data is obfuscated before being included in the binary.
@@ -26,31 +25,13 @@ use crate::{
 /// let mut num = encrust!(0u8);
 /// assert_eq!(0u8, *num.decrust());
 /// let mut string = encrust!("This is a string");
-/// assert_eq!("This is a string", string.decrust().as_str());
+/// assert_eq!("This is a string", &*string.decrust());
 /// let mut array = encrust!([1i32, 2i32, 3i32]);
-/// assert_eq!(&[1i32, 2i32, 3i32], array.decrust().as_slice());
+/// assert_eq!(&[1i32, 2i32, 3i32], &*array.decrust());
 /// ```
 #[proc_macro]
 pub fn encrust(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as Literal).generate_output_tokens()
-}
-
-/// Encrust a vec of literals. This works similarly to [`encrust!`] and supports the same data
-/// types, but puts the data in a `vec`.
-///
-/// # Example
-/// ```
-/// # extern crate encrust_core as encrust;
-/// # use encrust_macros::encrust_vec;
-/// let mut a_vec = encrust_vec![1i32, 2i32, 3i32];
-/// assert_eq!(
-///     vec![1i32, 2i32, 3i32].as_slice(),
-///     a_vec.decrust().as_slice()
-/// );
-/// ```
-#[proc_macro]
-pub fn encrust_vec(input: TokenStream) -> TokenStream {
-    parse_macro_input!(input as LiteralVec).generate_output_tokens()
 }
 
 /// Read the contents of a file into a string and encrust it so the actual file contents is
@@ -138,12 +119,4 @@ pub fn hashstring_ci(input: TokenStream) -> TokenStream {
 #[cfg(feature = "hashstrings")]
 pub fn hashbytes(input: TokenStream) -> TokenStream {
     parse_macro_input!(input as ToHashBytes).generate_output_tokens()
-}
-
-/// Derive macro to allow custom `struct`s and `enum`s to be encrusted.
-///
-/// This requires that all fields are `Encrust`. Currently, no other options are available.
-#[proc_macro_derive(Encrust)]
-pub fn derive_encrust_macro(input: TokenStream) -> TokenStream {
-    derive::derive_encrust(parse_macro_input!(input as syn::DeriveInput))
 }
