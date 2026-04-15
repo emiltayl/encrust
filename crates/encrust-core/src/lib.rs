@@ -84,6 +84,7 @@ where
 
     /// Deobfuscates the data contained in [`Encrusted`] and returns a [`DecrustGuard`] object that
     /// can be used to access and modify the actual data.
+    #[doc(alias("expose", "unlock"))]
     pub fn decrust(&mut self) -> DecrustGuard<'_, T> {
         DecrustGuard::new(self)
     }
