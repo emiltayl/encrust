@@ -11,18 +11,19 @@ pub use hashstrings::*;
 #[cfg(not(test))]
 extern crate core;
 
-#[cfg(not(test))]
 extern crate alloc;
 
-#[cfg(not(test))]
-use alloc::{string::String, vec::Vec};
-#[cfg(not(test))]
+use alloc::{ffi::CString, string::String, vec::Vec};
 use core::ops::{Deref, DerefMut};
-#[cfg(test)]
-use std::ops::{Deref, DerefMut};
 
 use rand::{RngCore, SeedableRng, rngs::SmallRng};
 use zeroize::Zeroize;
+
+#[doc(hidden)]
+pub mod __private {
+    /// Used by encrust's macros to refer to `CString` regardless of `std` availability.
+    pub use alloc::ffi::CString;
+}
 
 /// Container struct for encrust, accepting [`Encrust`] + `Zeroize` types for obfuscation and
 /// deobfuscation when needed.
@@ -81,8 +82,8 @@ where
         <T as Encrust>::toggle_encrust(&mut self.data, &mut encrust_rng);
     }
 
-    /// Deobfuscates the data contained in [`Encrusted`] and returns a [`DecrustGuard`] object that can
-    /// be used to access and modify the actual data.
+    /// Deobfuscates the data contained in [`Encrusted`] and returns a [`DecrustGuard`] object that
+    /// can be used to access and modify the actual data.
     pub fn decrust(&mut self) -> DecrustGuard<'_, T> {
         DecrustGuard::new(self)
     }
@@ -318,15 +319,14 @@ impl Encrust for String {
     }
 }
 
-impl<T, const N: usize> Encrust for [T; N]
-where
-    T: InPlaceEncrust,
-{
-    type Storage = Self;
-    type Ref = [T];
+// TODO byte slice for now?
+impl Encrust for CString {
+    type Storage = Vec<u8>;
+    // Note: it is currently not supported to get
+    type Ref = [u8];
 
     fn to_storage(self) -> Self::Storage {
-        self
+        self.into_bytes_with_nul()
     }
 
     unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref {
@@ -335,6 +335,39 @@ where
 
     unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref {
         storage.as_mut()
+    }
+
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+        // TODO possibly replace with <Vec<u8> as Encrust>::toggle_encrust(storage, encrust_rng);?
+        // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
+        // the tested x86-64 systems.
+        let mut key: [u8; 16] = [0; 16];
+        for chunk in storage.chunks_mut(16) {
+            encrust_rng.fill_bytes(&mut key);
+            for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
+                *byte ^= byte_key;
+            }
+        }
+    }
+}
+
+impl<T, const N: usize> Encrust for [T; N]
+where
+    T: InPlaceEncrust,
+{
+    type Storage = Self;
+    type Ref = [T; N];
+
+    fn to_storage(self) -> Self::Storage {
+        self
+    }
+
+    unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref {
+        storage
+    }
+
+    unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref {
+        storage
     }
 
     fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {

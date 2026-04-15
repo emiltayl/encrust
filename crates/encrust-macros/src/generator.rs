@@ -1,3 +1,5 @@
+use std::ffi::CString;
+
 use encrust_core::{Encrust, Hashbytes, Hashstring, Sensitivity};
 use proc_macro2::Span;
 use quote::{quote, quote_spanned};
@@ -80,16 +82,41 @@ impl ToEncrustedTokenStream for Literal {
                 <String as Encrust>::toggle_encrust(&mut bytes, encruster);
                 (quote! { String }, quote! { vec![#(#bytes),*] })
             }
+            Self::BString(bstring) => {
+                let encrusted_bytes = bstring
+                    .iter()
+                    .map(|n| number_to_token_stream!(u8, n, encruster))
+                    .collect::<Vec<(proc_macro2::TokenStream, proc_macro2::TokenStream)>>();
+
+                let encrusted_tokens: Vec<proc_macro2::TokenStream> =
+                    encrusted_bytes.into_iter().map(|(_, val)| val).collect();
+                let len = encrusted_tokens.len();
+
+                (quote! { [u8; #len] }, quote! {[#(#encrusted_tokens),*]})
+            }
+            Self::CString(cstr) => {
+                let mut bytes = cstr.as_bytes_with_nul().to_vec();
+                <::encrust_core::__private::CString as Encrust>::toggle_encrust(
+                    &mut bytes, encruster,
+                );
+                (
+                    quote! { ::encrust_core::__private::CString },
+                    quote! { vec![#(#bytes),*] },
+                )
+            }
             Self::Array(arr) => {
                 let encrusted_items = arr
                     .iter()
                     .map(|el| el.to_token_stream(encruster))
-                    .collect::<Result<Vec<(proc_macro2::TokenStream, proc_macro2::TokenStream)>, TokenStreamError>>()?;
+                    .collect::<Result<
+                        Vec<(proc_macro2::TokenStream, proc_macro2::TokenStream)>,
+                        TokenStreamError,
+                    >>()?;
 
-                let encrusted_values: Vec<proc_macro2::TokenStream> = encrusted_items.into_iter().map(|(_, val)| val).collect();
+                let encrusted_values: Vec<proc_macro2::TokenStream> =
+                    encrusted_items.into_iter().map(|(_, val)| val).collect();
                 let len = encrusted_values.len();
 
-                // TODO what happens with invalid arrays (different types)?
                 (quote! { [_; #len] }, quote! {[#(#encrusted_values),*]})
             }
         })
@@ -113,7 +140,44 @@ impl ToEncrustedTokenStream for StringFileReader {
             Ok(s) => Literal::String(s).to_token_stream(encruster),
             Err(error) => Err(TokenStreamError {
                 msg: format!(
-                    "Error when attempting to read `{}` to a String: {}",
+                    "Error when attempting to read `{}` to a `String`: {}",
+                    self.0.path.display(),
+                    error
+                ),
+                span: self.0.span,
+            }),
+        }
+    }
+}
+
+pub struct CStringFileReader(FilePath);
+
+impl From<FilePath> for CStringFileReader {
+    fn from(path: FilePath) -> Self {
+        Self(path)
+    }
+}
+
+impl ToEncrustedTokenStream for CStringFileReader {
+    fn to_token_stream(
+        &self,
+        encruster: &mut impl RngCore,
+    ) -> Result<(proc_macro2::TokenStream, proc_macro2::TokenStream), TokenStreamError> {
+        match std::fs::read_to_string(&self.0.path) {
+            Ok(s) => {
+                let cstr = CString::new(s).map_err(|_| TokenStreamError {
+                    msg: format!(
+                        "Error when attempting to file contents in `{}` to a `CString`.",
+                        self.0.path.display(),
+                    ),
+                    span: self.0.span,
+                })?;
+
+                Literal::CString(cstr).to_token_stream(encruster)
+            }
+            Err(error) => Err(TokenStreamError {
+                msg: format!(
+                    "Error when attempting to read `{}` to a `CString`: {}",
                     self.0.path.display(),
                     error
                 ),

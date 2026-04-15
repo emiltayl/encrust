@@ -31,6 +31,11 @@
 ## Added
 * Introduced a `InPlaceEncrust` trait for simple types such as integers where `Storage` and `Ref`
   can be `Self`. `Encrust` is implemented for all `InPlaceEncrust` types.
+* Added `Encrust` implementation for `CString`. `Ref` is currently `[u8]` as there is no good way to
+  get an `&mut CStr` from a `Vec<u8>`.
+* Added `b""` and `c""` literals to the `encrust!` macro.
+* Added `encrust_file_cstring!` macro to read the file contents of a file into a `CString` and
+  encrust it at compile time.
 
 ## Removed
 * Removed the derive macro for `Encrust` as a general derive macro does not work with the changed

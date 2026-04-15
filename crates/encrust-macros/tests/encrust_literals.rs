@@ -4,6 +4,8 @@
 // imported into encrust_macros as this would introduce cyclic dependencies.
 extern crate encrust_core as encrust;
 
+use std::ffi::CString;
+
 use encrust_macros::encrust;
 
 const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";
@@ -56,10 +58,26 @@ fn encrust_string() {
 }
 
 #[test]
+fn encrust_bstring() {
+    let mut s = encrust!(b"The quick brown fox jumps over the lazy dog");
+    let decrusted = s.decrust();
+    assert_eq!(b"The quick brown fox jumps over the lazy dog", &*decrusted);
+}
+
+#[test]
+fn encrust_cstring() {
+    let mut s = encrust!(c"The quick brown fox jumps over the lazy dog😊");
+    let orig_cstring = CString::new(TEST_STRING).expect("CString::new failed.");
+    let decrusted = s.decrust();
+
+    assert_eq!(orig_cstring.as_bytes_with_nul(), &*decrusted);
+}
+
+#[test]
 fn encrust_arrays() {
     const ORIG_ARRAY: [u8; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
-    
+
     let mut encrusted = encrust!([0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8]);
     let decrusted = encrusted.decrust();
-    assert_eq!(ORIG_ARRAY, &*decrusted);
+    assert_eq!(ORIG_ARRAY, *decrusted);
 }

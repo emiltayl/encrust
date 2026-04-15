@@ -9,7 +9,7 @@ use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 use crate::{
-    generator::{BytesFileReader, StringFileReader, ToEncrustedTokenStream},
+    generator::{BytesFileReader, CStringFileReader, StringFileReader, ToEncrustedTokenStream},
     parser::{FilePath, Literal, ToHashBytes, ToHashString},
 };
 
@@ -51,6 +51,25 @@ pub fn encrust(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn encrust_file_string(input: TokenStream) -> TokenStream {
     StringFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
+}
+
+/// Read the contents of a file into a `CString` and encrust it so the actual file contents is
+/// obfuscated before being included in the binary.
+///
+/// Unless an absolute path is given, the file is read relative to the `CARGO_MANIFEST_DIR`
+/// environment variable, which is set to the directory containing the crate's `Cargo.toml` file.
+/// *Note* that this is not identical to `include_str!`'s behavior, which reads relative to the file
+/// using the macro.
+///
+/// # Example
+/// ```
+/// # extern crate encrust_core as encrust;
+/// # use encrust_macros::encrust_file_cstring;
+/// let mut cargo_toml = encrust_file_cstring!("Cargo.toml");
+/// ```
+#[proc_macro]
+pub fn encrust_file_cstring(input: TokenStream) -> TokenStream {
+    CStringFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
 }
 
 /// Read the contents of a file into a `u8` array and encrust it so the actual file contents is

@@ -1,7 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::CString,
+    path::{Path, PathBuf},
+};
 
 use proc_macro2::Span;
-use syn::{LitInt, LitStr, Token, bracketed, parse::Parse};
+use syn::{LitByteStr, LitCStr, LitInt, LitStr, Token, bracketed, parse::Parse};
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub enum Literal {
@@ -18,6 +21,8 @@ pub enum Literal {
     I128(i128),
     Isize(isize),
     String(String),
+    BString(Vec<u8>),
+    CString(CString),
     Array(Vec<Literal>),
 }
 
@@ -59,6 +64,14 @@ impl Parse for Literal {
             let string: LitStr = input.parse()?;
 
             Ok(Self::String(string.value()))
+        } else if input.peek(LitByteStr) {
+            let bytes: LitByteStr = input.parse()?;
+
+            Ok(Self::BString(bytes.value()))
+        } else if input.peek(LitCStr) {
+            let cstring: LitCStr = input.parse()?;
+
+            Ok(Self::CString(cstring.value()))
         } else if input.peek(syn::token::Bracket) {
             let mut content = Vec::new();
             let buffer;
@@ -202,6 +215,27 @@ mod tests {
                 .expect("Unable to parse literal");
         assert_eq!(
             Literal::String("The quick brown fox jumps over the lazy dog😊".to_string()),
+            literal
+        );
+    }
+
+    #[test]
+    fn parse_bstring_literal() {
+        let literal = syn::parse_str::<Literal>("b\"The quick brown fox jumps over the lazy dog\"")
+            .expect("Unable to parse literal");
+        assert_eq!(
+            Literal::BString(b"The quick brown fox jumps over the lazy dog".to_vec()),
+            literal
+        );
+    }
+
+    #[test]
+    fn parse_cstring_literal() {
+        let literal =
+            syn::parse_str::<Literal>("c\"The quick brown fox jumps over the lazy dog😊\"")
+                .expect("Unable to parse literal");
+        assert_eq!(
+            Literal::CString(c"The quick brown fox jumps over the lazy dog😊".to_owned()),
             literal
         );
     }
