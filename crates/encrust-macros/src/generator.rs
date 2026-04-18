@@ -3,7 +3,8 @@ use std::ffi::CString;
 use encrust_core::{Encrust, Hashbytes, Hashstring, Sensitivity};
 use proc_macro2::Span;
 use quote::{quote, quote_spanned};
-use rand::{RngCore, SeedableRng, rngs::SmallRng};
+use rand::rngs::SmallRng;
+use rand::{RngCore, SeedableRng};
 
 use crate::parser::{FilePath, Literal, ToHashBytes, ToHashString};
 

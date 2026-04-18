@@ -1,7 +1,5 @@
-use std::{
-    ffi::CString,
-    path::{Path, PathBuf},
-};
+use std::ffi::CString;
+use std::path::{Path, PathBuf};
 
 use proc_macro2::Span;
 use syn::{LitByteStr, LitCStr, LitInt, LitStr, Token, bracketed, parse::Parse};

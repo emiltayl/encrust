@@ -13,10 +13,13 @@ extern crate core;
 
 extern crate alloc;
 
-use alloc::{ffi::CString, string::String, vec::Vec};
+use alloc::ffi::CString;
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
-use rand::{RngCore, SeedableRng, rngs::SmallRng};
+use rand::rngs::SmallRng;
+use rand::{RngCore, SeedableRng};
 use zeroize::Zeroize;
 
 #[doc(hidden)]
