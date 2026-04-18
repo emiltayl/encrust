@@ -288,6 +288,17 @@ encrust_int!(
     u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize
 );
 
+impl<T, const N: usize> InPlaceEncrust for [T; N]
+where
+    T: InPlaceEncrust,
+{
+    fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
+        for element in self {
+            element.toggle_encrust(encrust_rng);
+        }
+    }
+}
+
 impl Encrust for String {
     type Storage = Vec<u8>;
 
@@ -351,32 +362,6 @@ impl Encrust for CString {
             for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
                 *byte ^= byte_key;
             }
-        }
-    }
-}
-
-impl<T, const N: usize> Encrust for [T; N]
-where
-    T: InPlaceEncrust,
-{
-    type Storage = Self;
-    type Ref = [T; N];
-
-    fn to_storage(self) -> Self::Storage {
-        self
-    }
-
-    unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref {
-        storage
-    }
-
-    unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref {
-        storage
-    }
-
-    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
-        for element in storage {
-            element.toggle_encrust(encrust_rng);
         }
     }
 }
