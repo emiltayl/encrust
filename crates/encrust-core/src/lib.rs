@@ -22,10 +22,13 @@ use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use zeroize::Zeroize;
 
+/// Module with symbols needed by encrust's macros to generate working code regardless of whether
+/// the code is compiled with `std` or not.
 #[doc(hidden)]
 pub mod __private {
-    /// Used by encrust's macros to refer to `CString` regardless of `std` availability.
     pub use alloc::ffi::CString;
+    pub use alloc::string::String;
+    pub use alloc::vec;
 }
 
 /// Container struct for encrust, accepting [`Encrust`] + `Zeroize` types for obfuscation and

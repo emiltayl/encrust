@@ -8,10 +8,10 @@ mod parser;
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
-use crate::{
-    generator::{BytesFileReader, CStringFileReader, StringFileReader, ToEncrustedTokenStream},
-    parser::{FilePath, Literal, ToHashBytes, ToHashString},
+use crate::generator::{
+    BytesFileReader, CStringFileReader, StringFileReader, ToEncrustedTokenStream,
 };
+use crate::parser::{FilePath, LiteralNode, ToHashBytes, ToHashString};
 
 /// Encrust a literal value so the actual data is obfuscated before being included in the binary.
 /// Currently integers, strings and arrays of (arrays of) integers and strings are accepted.
@@ -31,7 +31,9 @@ use crate::{
 /// ```
 #[proc_macro]
 pub fn encrust(input: TokenStream) -> TokenStream {
-    parse_macro_input!(input as Literal).generate_output_tokens()
+    parse_macro_input!(input as LiteralNode)
+        .kind
+        .generate_output_tokens()
 }
 
 /// Read the contents of a file into a string and encrust it so the actual file contents is

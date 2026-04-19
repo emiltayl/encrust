@@ -76,8 +76,16 @@ fn encrust_cstring() {
 #[test]
 fn encrust_arrays() {
     const ORIG_ARRAY: [u8; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
+    const ORIG_ARRAYARRAY: [[u8; 8]; 2] = [[0, 1, 2, 3, 4, 5, 6, 7], [7, 6, 5, 4, 3, 2, 1, 0]];
 
     let mut encrusted = encrust!([0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8]);
     let decrusted = encrusted.decrust();
     assert_eq!(ORIG_ARRAY, *decrusted);
+
+    let mut encrusted = encrust!([
+        [0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8],
+        [7u8, 6u8, 5u8, 4u8, 3u8, 2u8, 1u8, 0u8]
+    ]);
+    let decrusted = encrusted.decrust();
+    assert_eq!(ORIG_ARRAYARRAY, *decrusted);
 }
