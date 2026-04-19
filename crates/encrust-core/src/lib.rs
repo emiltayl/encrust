@@ -19,7 +19,7 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use rand::rngs::SmallRng;
-use rand::{RngCore, SeedableRng};
+use rand::{Rng, SeedableRng};
 use zeroize::Zeroize;
 
 #[doc(hidden)]
@@ -219,7 +219,7 @@ pub trait Encrust {
     /// Calling `toggle_encrust` itself should always be safe. However, calling `as_ref` or
     /// `as_mut_ref` on a value where `toggle_encrust` has been called an odd number of times may
     /// lead to undefined behavior.
-    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore);
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng);
 }
 
 /// A simpler alternative to [`Encrust`] for types where `Storage` and `Ref` are `Self`.
@@ -233,7 +233,7 @@ pub trait InPlaceEncrust {
     ///
     /// This function should only be used by the encrust crate to toggle obfuscation state. Do
     /// **not** call this function manually.
-    fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore);
+    fn toggle_encrust(&mut self, encrust_rng: &mut impl Rng);
 }
 
 impl<T> Encrust for T
@@ -255,7 +255,7 @@ where
         storage
     }
 
-    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng) {
         <T as InPlaceEncrust>::toggle_encrust(storage, encrust_rng);
     }
 }
@@ -264,7 +264,7 @@ macro_rules! encrust_int {
     ( $( $t:ty ),* ) => {
         $(
             impl InPlaceEncrust for $t {
-                fn toggle_encrust(&mut self, encrust_rng: &mut impl ::rand::RngCore) {
+                fn toggle_encrust(&mut self, encrust_rng: &mut impl Rng) {
                     let mut bytes = self.to_le_bytes();
 
                     // Using 8 bytes as most numbers that will be used with encrust are (most
@@ -292,7 +292,7 @@ impl<T, const N: usize> InPlaceEncrust for [T; N]
 where
     T: InPlaceEncrust,
 {
-    fn toggle_encrust(&mut self, encrust_rng: &mut impl RngCore) {
+    fn toggle_encrust(&mut self, encrust_rng: &mut impl Rng) {
         for element in self {
             element.toggle_encrust(encrust_rng);
         }
@@ -320,7 +320,7 @@ impl Encrust for String {
         unsafe { str::from_utf8_unchecked_mut(storage) }
     }
 
-    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng) {
         // TODO possibly replace with <Vec<u8> as Encrust>::toggle_encrust(storage, encrust_rng);?
         // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
         // the tested x86-64 systems.
@@ -352,7 +352,7 @@ impl Encrust for CString {
         storage.as_mut()
     }
 
-    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng) {
         // TODO possibly replace with <Vec<u8> as Encrust>::toggle_encrust(storage, encrust_rng);?
         // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
         // the tested x86-64 systems.
@@ -385,7 +385,7 @@ where
         storage.as_mut()
     }
 
-    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl RngCore) {
+    fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng) {
         for element in storage {
             element.toggle_encrust(encrust_rng);
         }

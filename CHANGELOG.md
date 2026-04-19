@@ -27,6 +27,7 @@
     `InPlaceEncrust`.
 * Renamed `Decrusted` to `DecrustGuard`.
 * MSRV changed from 1.85 to 1.87.
+* Updated `rand` dependency to version 0.10.1.
 
 ## Added
 * Introduced a `InPlaceEncrust` trait for simple types such as integers where `Storage` and `Ref`

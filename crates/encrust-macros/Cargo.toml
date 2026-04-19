@@ -20,7 +20,7 @@ zeroize = "1.6.0"
 encrust-core = { path = "../encrust-core", version = "0.3.2" }
 proc-macro2 = "1.0.67"
 quote = "1.0.33"
-rand = "0.9.0"
+rand = "0.10.1"
 syn = { version = "2.0.33", default-features = false, features = ["derive", "parsing", "printing", "proc-macro"] }
 
 [features]

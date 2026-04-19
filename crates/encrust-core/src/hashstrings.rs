@@ -167,7 +167,7 @@ impl PartialEq<&[u8]> for Hashbytes {
 
 #[cfg(test)]
 mod tests {
-    use rand::RngCore;
+    use rand::Rng;
 
     use super::*;
 
