@@ -17,6 +17,8 @@ use alloc::ffi::CString;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
+use core::any::TypeId;
+use core::slice;
 
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -293,12 +295,10 @@ encrust_int!(
 
 impl<T, const N: usize> InPlaceEncrust for [T; N]
 where
-    T: InPlaceEncrust,
+    T: InPlaceEncrust + 'static,
 {
     fn toggle_encrust(&mut self, encrust_rng: &mut impl Rng) {
-        for element in self {
-            element.toggle_encrust(encrust_rng);
-        }
+        slice_toggle_encrust::<T>(self, encrust_rng);
     }
 }
 
@@ -324,20 +324,10 @@ impl Encrust for String {
     }
 
     fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng) {
-        // TODO possibly replace with <Vec<u8> as Encrust>::toggle_encrust(storage, encrust_rng);?
-        // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
-        // the tested x86-64 systems.
-        let mut key: [u8; 16] = [0; 16];
-        for chunk in storage.chunks_mut(16) {
-            encrust_rng.fill_bytes(&mut key);
-            for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
-                *byte ^= byte_key;
-            }
-        }
+        slice_toggle_encrust::<u8>(storage, encrust_rng);
     }
 }
 
-// TODO byte slice for now?
 impl Encrust for CString {
     type Storage = Vec<u8>;
     // Note: it is currently not supported to get
@@ -356,22 +346,13 @@ impl Encrust for CString {
     }
 
     fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng) {
-        // TODO possibly replace with <Vec<u8> as Encrust>::toggle_encrust(storage, encrust_rng);?
-        // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
-        // the tested x86-64 systems.
-        let mut key: [u8; 16] = [0; 16];
-        for chunk in storage.chunks_mut(16) {
-            encrust_rng.fill_bytes(&mut key);
-            for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
-                *byte ^= byte_key;
-            }
-        }
+        slice_toggle_encrust::<u8>(storage, encrust_rng);
     }
 }
 
 impl<T> Encrust for Vec<T>
 where
-    T: InPlaceEncrust,
+    T: InPlaceEncrust + 'static,
 {
     type Storage = Self;
     type Ref = [T];
@@ -389,8 +370,40 @@ where
     }
 
     fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng) {
-        for element in storage {
-            element.toggle_encrust(encrust_rng);
+        slice_toggle_encrust::<T>(storage, encrust_rng);
+    }
+}
+
+/// Helper function that implements encrust for any slice of `Encrust`-able types.
+fn slice_toggle_encrust<T>(encrust_slice: &mut [T::Storage], encrust_rng: &mut impl Rng)
+where
+    T: Encrust,
+    T::Storage: 'static,
+{
+    let type_id = TypeId::of::<T::Storage>();
+
+    if type_id == TypeId::of::<u8>() {
+        // SAFETY:
+        // * `T::Storage` is `u8`, which makes `encrust_slice` a `&mut [u8]`.
+        // * `encrust_slice` is shadowed so the original reference cannot be accessed until the new
+        //   reference goes out of scope.
+        let encrust_slice = unsafe {
+            slice::from_raw_parts_mut(encrust_slice.as_mut_ptr().cast::<u8>(), encrust_slice.len())
+        };
+
+        // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
+        // the tested x86-64 systems.
+        let mut key: [u8; 16] = [0; 16];
+        for chunk in encrust_slice.chunks_mut(16) {
+            encrust_rng.fill_bytes(&mut key);
+            for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
+                *byte ^= byte_key;
+            }
+        }
+    } else {
+        // Fallback to encrust each item separately if we have no special optimization.
+        for element in encrust_slice {
+            <T as Encrust>::toggle_encrust(element, encrust_rng);
         }
     }
 }
@@ -618,6 +631,6 @@ mod tests {
         };
 
         let decrusted_test_string = test_string.decrust();
-        assert_eq!(&*decrusted_test_string, TEST_STRING);
+        assert_eq!(decrusted_test_string.as_bytes(), TEST_STRING.as_bytes());
     }
 }
