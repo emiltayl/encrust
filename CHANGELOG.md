@@ -26,6 +26,8 @@
     Instead, the arrays and `Vec`s must now be of types that implement the new trait
     `InPlaceEncrust`.
 * Renamed `Decrusted` to `DecrustGuard`.
+* Changed `toggle_encrust` for `u8` slices. The new approach shuffles 16 byte chunks and modifies
+  each byte by one of 8 possible values to decrease entropy gain.
 * MSRV changed from 1.85 to 1.87.
 * Updated `rand` dependency to version 0.10.1.
 

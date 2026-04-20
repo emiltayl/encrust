@@ -16,6 +16,7 @@ extern crate alloc;
 use alloc::ffi::CString;
 use alloc::string::String;
 use alloc::vec::Vec;
+use rand::seq::SliceRandom;
 use core::ops::{Deref, DerefMut};
 use core::any::TypeId;
 use core::slice;
@@ -391,19 +392,69 @@ where
             slice::from_raw_parts_mut(encrust_slice.as_mut_ptr().cast::<u8>(), encrust_slice.len())
         };
 
-        // Encrusting 16 bytes at a time as a micro-benchmark showed that it was most efficient on
-        // the tested x86-64 systems.
-        let mut key: [u8; 16] = [0; 16];
-        for chunk in encrust_slice.chunks_mut(16) {
-            encrust_rng.fill_bytes(&mut key);
-            for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
-                *byte ^= byte_key;
-            }
-        }
+        u8_slice_toggle_encrust(encrust_slice, encrust_rng);
     } else {
         // Fallback to encrust each item separately if we have no special optimization.
         for element in encrust_slice {
             <T as Encrust>::toggle_encrust(element, encrust_rng);
+        }
+    }
+}
+
+/// `toggle_encrust` for `u8` slices.
+/// 
+/// This is handled as a special case as it is by far the most likely slice used with encrust, and
+/// the crate author wants to avoid increasing the entropy of `u8` slices by too much.
+fn u8_slice_toggle_encrust(encrust_slice: &mut [u8], encrust_rng: &mut impl Rng) {
+    let mut shuffle_indices: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    let mut key: [u8; 8] = [0u8; 8];
+
+    for chunk in encrust_slice.chunks_mut(16) {
+        encrust_rng.fill_bytes(&mut key);
+
+        // Mask to 3 bits per key byte (8 distinct values) to limit entropy increase.
+        for byte in &mut key {
+            *byte &= 0b00_01_10_01;
+        }
+
+        // Store how many numbers we swap to avoid attempting to access out of bounds in `chunk`.
+        let (n_shuffle_indices, is_odd) = if chunk.len() < 16 {
+            // If we are on the last chunk with less than 16 bytes, we need to make sure that we
+            // only get indices in range while swapping. If we have an odd number of bytes, we do
+            // not shuffle the last byte as the current approach can only shuffle pairs of bytes.
+
+            let (shuffle_count, is_odd) = if (chunk.len() % 2) == 0 {
+                (chunk.len(), false)
+            } else {
+                (chunk.len() - 1, true)
+            };
+
+            for (i, elem) in shuffle_indices.iter_mut().enumerate().take(shuffle_count) {
+                *elem = u8::try_from(i).unwrap();
+            }
+
+            shuffle_indices[0..shuffle_count].shuffle(encrust_rng);
+
+            (shuffle_count, is_odd)
+        } else {
+            shuffle_indices.shuffle(encrust_rng);
+            
+            (chunk.len(), false)
+        };
+
+        // For each shuffled index pair, transform the chunk: add/subtract key byte, then swap.
+        // This order ensures the transformation is idempotent when applied with the same seed.
+        for (pair, key) in shuffle_indices[..n_shuffle_indices].chunks(2).zip(key) {
+            let i = usize::from(pair[0]);
+            let j = usize::from(pair[1]);
+
+            chunk[i] = chunk[i].wrapping_add(key);
+            chunk[j] = chunk[j].wrapping_sub(key);
+            chunk.swap(i, j);
+        }
+
+        if is_odd {
+            *chunk.last_mut().unwrap() ^= key.last().unwrap();
         }
     }
 }
@@ -617,10 +668,10 @@ mod tests {
         let mut test_string = unsafe {
             Encrusted::<String>::from_encrusted_data(
                 vec![
-                    55u8, 10u8, 35u8, 94u8, 130u8, 81u8, 207u8, 225u8, 64u8, 17u8, 143u8, 78u8,
-                    95u8, 204u8, 50u8, 183u8, 54u8, 185u8, 59u8, 50u8, 163u8, 122u8, 131u8, 136u8,
-                    172u8, 79u8, 17u8, 12u8, 56u8, 64u8, 59u8, 173u8, 102u8, 54u8, 184u8, 186u8,
-                    1u8, 246u8, 193u8, 136u8, 220u8, 224u8, 117u8, 144u8, 131u8, 65u8, 77u8,
+                    114u8, 87u8, 102u8, 107u8, 117u8, 113u8, 32u8, 110u8, 32u8, 97u8, 33u8, 84u8,
+                    128u8, 118u8, 99u8, 105u8, 112u8, 92u8, 110u8, 106u8, 32u8, 120u8, 128u8, 109u8,
+                    142u8, 87u8, 56u8, 91u8, 124u8, 16u8, 130u8, 93u8, 119u8, 84u8, 24u8, 125u8,
+                    91u8, 121u8, 122u8, 40u8, 106u8, 96u8, 161u8, 175u8, 224u8, 94u8, 146u8,
                 ],
                 #[allow(
                     clippy::unreadable_literal,
