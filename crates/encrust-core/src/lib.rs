@@ -16,12 +16,12 @@ extern crate alloc;
 use alloc::ffi::CString;
 use alloc::string::String;
 use alloc::vec::Vec;
-use rand::seq::SliceRandom;
-use core::ops::{Deref, DerefMut};
 use core::any::TypeId;
+use core::ops::{Deref, DerefMut};
 use core::slice;
 
 use rand::rngs::SmallRng;
+use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use zeroize::Zeroize;
 
@@ -375,13 +375,48 @@ where
     }
 }
 
+/// Macro for implementing `toggle_encrust` for a slice of integers of different types.
+///
+/// # Safety
+/// Must be called inside an unsafe block as it uses `transmute` to convert from a `u64` to an
+/// array of `$ty` numbers. It must be sound to do this transmute for all possible bit patterns.
+macro_rules! toggle_encrust_for_integer {
+    ($ty:ty, $type_id:ident, $slice:ident, $rng:ident) => {{
+        const ARRAY_SIZE: usize = core::mem::size_of::<u64>() / core::mem::size_of::<$ty>();
+
+        // The following `assert`s should be optimized away. They help ensure the following:
+        // * `T` is `$ty`, needed to make sure that `slice::from_raw_parts_mut` is sound.
+        // * There are enough bytes in a `u64` for a `[$ty; ARRAY_SIZE]`.
+        assert!($type_id == TypeId::of::<$ty>());
+        assert!(core::mem::size_of::<u64>() >= core::mem::size_of::<[$ty; ARRAY_SIZE]>());
+
+        let slice = slice::from_raw_parts_mut($slice.as_mut_ptr().cast::<$ty>(), $slice.len());
+
+        for chunk in slice.chunks_mut(ARRAY_SIZE) {
+            let key = $rng.next_u64().to_le_bytes();
+            let key: [$ty; ARRAY_SIZE] = core::array::from_fn(|i| {
+                let start = i * core::mem::size_of::<$ty>();
+                <$ty>::from_le_bytes(
+                    key[start..start + core::mem::size_of::<$ty>()]
+                        .try_into()
+                        .unwrap(),
+                )
+            });
+
+            for (num, key) in chunk.iter_mut().zip(key.iter()) {
+                *num ^= key;
+            }
+        }
+    }};
+}
+
 /// Helper function that implements encrust for any slice of `Encrust`-able types.
 fn slice_toggle_encrust<T>(encrust_slice: &mut [T::Storage], encrust_rng: &mut impl Rng)
 where
     T: Encrust,
     T::Storage: 'static,
 {
-    let type_id = TypeId::of::<T::Storage>();
+    let type_id: TypeId = TypeId::of::<T::Storage>();
 
     if type_id == TypeId::of::<u8>() {
         // SAFETY:
@@ -393,6 +428,33 @@ where
         };
 
         u8_slice_toggle_encrust(encrust_slice, encrust_rng);
+    } else if type_id == TypeId::of::<i8>() {
+        // SAFETY: `i8` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(i8, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<i16>() {
+        // SAFETY: `i16` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(i16, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<i32>() {
+        // SAFETY: `i32` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(i32, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<u16>() {
+        // SAFETY: `u16` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(u16, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<u32>() {
+        // SAFETY: `u32` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(u32, type_id, encrust_slice, encrust_rng);
+        }
+    // TODO Create benchmarks and check whether it is worth implementing for `i64`, `u64`, `isize`,
+    //      and `usize`.
     } else {
         // Fallback to encrust each item separately if we have no special optimization.
         for element in encrust_slice {
@@ -402,7 +464,7 @@ where
 }
 
 /// `toggle_encrust` for `u8` slices.
-/// 
+///
 /// This is handled as a special case as it is by far the most likely slice used with encrust, and
 /// the crate author wants to avoid increasing the entropy of `u8` slices by too much.
 fn u8_slice_toggle_encrust(encrust_slice: &mut [u8], encrust_rng: &mut impl Rng) {
@@ -438,7 +500,7 @@ fn u8_slice_toggle_encrust(encrust_slice: &mut [u8], encrust_rng: &mut impl Rng)
             (shuffle_count, is_odd)
         } else {
             shuffle_indices.shuffle(encrust_rng);
-            
+
             (chunk.len(), false)
         };
 
@@ -488,12 +550,11 @@ mod tests {
                     let seed = get_seed();
                     let mut encrust_rng = SmallRng::seed_from_u64(seed);
                     let mut encrusted_data: $t = 0;
+                    encrusted_data.toggle_encrust(&mut encrust_rng);
 
-                    // Safety: Testing from_encrusted_data requires pre-encrusted data, which is
-                    // an unsafe operation. The data will not be available without calling
-                    // `toggle_encrust` again.
+                    // Safety: `toggle_encrust` is called before using `encrusted_data` in
+                    // `from_encrusted_data`.
                     let mut encrusted = unsafe {
-                        encrusted_data.toggle_encrust(&mut encrust_rng);
                         Encrusted::<$t>::from_encrusted_data(encrusted_data, seed)
                     };
 
@@ -510,9 +571,57 @@ mod tests {
         };
     }
 
+    macro_rules! test_int_arrays {
+        ( $( $t:ty ),* ) => {
+            $(
+                let zero_array: [$t; 9] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                {
+                    let mut encrusted = Encrusted::<[$t; 9]>::new(zero_array, get_seed());
+                    assert_ne!(encrusted.data, zero_array);
+
+                    {
+                        let decrusted = encrusted.decrust();
+                        assert_eq!(*decrusted, zero_array);
+                    }
+
+                    assert_ne!(encrusted.data, zero_array);
+                }
+
+                {
+                    let seed = get_seed();
+                    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+                    let mut encrusted_data: [$t; 9] = zero_array;
+                    encrusted_data.toggle_encrust(&mut encrust_rng);
+
+                    // Safety: `toggle_encrust` is called before using `encrusted_data` in
+                    // `from_encrusted_data`.
+                    let mut encrusted = unsafe {
+                        Encrusted::<[$t; 9]>::from_encrusted_data(encrusted_data, seed)
+                    };
+
+                    assert_ne!(encrusted.data, zero_array);
+
+                    {
+                        let decrusted = encrusted.decrust();
+                        assert_eq!(*decrusted, zero_array);
+                    }
+
+                    assert_ne!(encrusted.data, zero_array);
+                }
+            )*
+        };
+    }
+
     #[test]
     fn test_ints() {
         test_ints!(
+            u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize
+        );
+    }
+
+    #[test]
+    fn test_int_arrays() {
+        test_int_arrays!(
             u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize
         );
     }
@@ -669,9 +778,9 @@ mod tests {
             Encrusted::<String>::from_encrusted_data(
                 vec![
                     114u8, 87u8, 102u8, 107u8, 117u8, 113u8, 32u8, 110u8, 32u8, 97u8, 33u8, 84u8,
-                    128u8, 118u8, 99u8, 105u8, 112u8, 92u8, 110u8, 106u8, 32u8, 120u8, 128u8, 109u8,
-                    142u8, 87u8, 56u8, 91u8, 124u8, 16u8, 130u8, 93u8, 119u8, 84u8, 24u8, 125u8,
-                    91u8, 121u8, 122u8, 40u8, 106u8, 96u8, 161u8, 175u8, 224u8, 94u8, 146u8,
+                    128u8, 118u8, 99u8, 105u8, 112u8, 92u8, 110u8, 106u8, 32u8, 120u8, 128u8,
+                    109u8, 142u8, 87u8, 56u8, 91u8, 124u8, 16u8, 130u8, 93u8, 119u8, 84u8, 24u8,
+                    125u8, 91u8, 121u8, 122u8, 40u8, 106u8, 96u8, 161u8, 175u8, 224u8, 94u8, 146u8,
                 ],
                 #[allow(
                     clippy::unreadable_literal,
