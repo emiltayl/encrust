@@ -20,7 +20,7 @@ use core::any::TypeId;
 use core::ops::{Deref, DerefMut};
 use core::slice;
 
-use rand::rngs::SmallRng;
+use rand::rngs::Xoshiro256PlusPlus;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use zeroize::Zeroize;
@@ -57,7 +57,7 @@ where
     pub fn new(data: T, seed: u64) -> Self {
         let mut data = data.to_storage();
 
-        let mut encrust_rng = SmallRng::seed_from_u64(seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
         <T as Encrust>::toggle_encrust(&mut data, &mut encrust_rng);
 
@@ -79,14 +79,14 @@ where
     /// Changes the seed used to obfuscate the underlying data.
     pub fn reseed(&mut self, new_seed: u64) {
         {
-            let mut decruster = SmallRng::seed_from_u64(self.seed);
+            let mut decruster = Xoshiro256PlusPlus::seed_from_u64(self.seed);
 
             <T as Encrust>::toggle_encrust(&mut self.data, &mut decruster);
         }
 
         self.seed = new_seed;
 
-        let mut encrust_rng = SmallRng::seed_from_u64(self.seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(self.seed);
 
         <T as Encrust>::toggle_encrust(&mut self.data, &mut encrust_rng);
     }
@@ -132,7 +132,7 @@ where
     T::Storage: Zeroize,
 {
     fn new(encrusted_data: &'decrusted mut Encrusted<T>) -> Self {
-        let mut decruster = SmallRng::seed_from_u64(encrusted_data.seed);
+        let mut decruster = Xoshiro256PlusPlus::seed_from_u64(encrusted_data.seed);
 
         <T as Encrust>::toggle_encrust(&mut encrusted_data.data, &mut decruster);
 
@@ -146,7 +146,7 @@ where
     T::Storage: Zeroize,
 {
     fn drop(&mut self) {
-        let mut encrust_rng = SmallRng::seed_from_u64(self.encrusted_data.seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(self.encrusted_data.seed);
 
         <T as Encrust>::toggle_encrust(&mut self.encrusted_data.data, &mut encrust_rng);
     }
@@ -548,7 +548,7 @@ mod tests {
 
                 {
                     let seed = get_seed();
-                    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+                    let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
                     let mut encrusted_data: $t = 0;
                     encrusted_data.toggle_encrust(&mut encrust_rng);
 
@@ -589,7 +589,7 @@ mod tests {
 
                 {
                     let seed = get_seed();
-                    let mut encrust_rng = SmallRng::seed_from_u64(seed);
+                    let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
                     let mut encrusted_data: [$t; 9] = zero_array;
                     encrusted_data.toggle_encrust(&mut encrust_rng);
 
@@ -642,7 +642,7 @@ mod tests {
     #[test]
     fn test_strings_from_encrusted() {
         let seed = get_seed();
-        let mut encrust_rng = SmallRng::seed_from_u64(seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
         let mut encrusted_string = TEST_STRING.to_string().into_bytes();
 
@@ -684,7 +684,7 @@ mod tests {
     #[test]
     fn test_arrays_from_encrusted() {
         let seed = get_seed();
-        let mut encrust_rng = SmallRng::seed_from_u64(seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         let orig_array: [u8; 45] = [
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
             24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
@@ -727,7 +727,7 @@ mod tests {
     #[test]
     fn test_vecs_from_encrusted() {
         let seed = get_seed();
-        let mut encrust_rng = SmallRng::seed_from_u64(seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         let orig_vec = TEST_STRING.as_bytes().to_vec();
 
         let mut encrusted_vec = orig_vec.clone();
