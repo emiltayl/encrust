@@ -275,9 +275,8 @@ macro_rules! encrust_int {
 
                     // Using 8 bytes as most numbers that will be used with encrust are (most
                     // likely) 64-bit or smaller.
-                    let mut key: [u8; 8] = [0; 8];
                     for chunk in bytes.chunks_mut(8) {
-                        encrust_rng.fill_bytes(&mut key);
+                        let key = encrust_rng.next_u64().to_le_bytes();
                         for (byte, byte_key) in chunk.iter_mut().zip(key.iter()) {
                             *byte ^= byte_key;
                         }
@@ -469,10 +468,9 @@ where
 /// the crate author wants to avoid increasing the entropy of `u8` slices by too much.
 fn u8_slice_toggle_encrust(encrust_slice: &mut [u8], encrust_rng: &mut impl Rng) {
     let mut shuffle_indices: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-    let mut key: [u8; 8] = [0u8; 8];
 
     for chunk in encrust_slice.chunks_mut(16) {
-        encrust_rng.fill_bytes(&mut key);
+        let mut key = encrust_rng.next_u64().to_le_bytes();
 
         // Mask to 3 bits per key byte (8 distinct values) to limit entropy increase.
         for byte in &mut key {
