@@ -442,6 +442,31 @@ where
         unsafe {
             toggle_encrust_for_integer!(i32, type_id, encrust_slice, encrust_rng);
         }
+    } else if type_id == TypeId::of::<i64>() {
+        // SAFETY: `i64` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(i64, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<isize>() {
+        // SAFETY: `i64` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(isize, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<i128>() {
+        // SAFETY:
+        // * `T::Storage` is `i128`, which makes `encrust_slice` a `&mut [i128]`.
+        // * `encrust_slice` is shadowed so the original reference cannot be accessed until the new
+        //   reference goes out of scope.
+        let encrust_slice = unsafe {
+            slice::from_raw_parts_mut(encrust_slice.as_mut_ptr().cast::<i128>(), encrust_slice.len())
+        };
+
+        let mut key = [0u8; 16];
+
+        for num in encrust_slice {
+            encrust_rng.fill_bytes(&mut key);
+            *num ^= i128::from_le_bytes(key);
+        }
     } else if type_id == TypeId::of::<u16>() {
         // SAFETY: `u16` can contain any bit pattern.
         unsafe {
@@ -452,8 +477,31 @@ where
         unsafe {
             toggle_encrust_for_integer!(u32, type_id, encrust_slice, encrust_rng);
         }
-    // TODO Create benchmarks and check whether it is worth implementing for `i64`, `u64`, `isize`,
-    //      and `usize`.
+    } else if type_id == TypeId::of::<u64>() {
+        // SAFETY: `u64` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(u64, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<usize>() {
+        // SAFETY: `u64` can contain any bit pattern.
+        unsafe {
+            toggle_encrust_for_integer!(usize, type_id, encrust_slice, encrust_rng);
+        }
+    } else if type_id == TypeId::of::<u128>() {
+        // SAFETY:
+        // * `T::Storage` is `u128`, which makes `encrust_slice` a `&mut [u128]`.
+        // * `encrust_slice` is shadowed so the original reference cannot be accessed until the new
+        //   reference goes out of scope.
+        let encrust_slice = unsafe {
+            slice::from_raw_parts_mut(encrust_slice.as_mut_ptr().cast::<u128>(), encrust_slice.len())
+        };
+
+        let mut key = [0u8; 16];
+
+        for num in encrust_slice {
+            encrust_rng.fill_bytes(&mut key);
+            *num ^= u128::from_le_bytes(key);
+        }
     } else {
         // Fallback to encrust each item separately if we have no special optimization.
         for element in encrust_slice {
