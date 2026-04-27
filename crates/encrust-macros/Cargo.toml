@@ -1,6 +1,6 @@
 [package]
 name = "encrust-macros"
-description = "Proc and derive macros for the encrust crate"
+description = "Proc macros for the encrust crate"
 authors.workspace = true
 categories.workspace = true
 edition.workspace = true

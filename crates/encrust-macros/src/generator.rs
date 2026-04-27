@@ -19,9 +19,8 @@ macro_rules! number_to_token_stream {
     }};
 }
 
-/// Convert an array of number literals to a `Vec` of the underlying numbers and encrust. This
-/// macro assumes that encrusting an array of numbers is identical to encrusting a `Vec` with those
-/// same numbers.
+/// Convert an array of number literals to a `Vec` of the underlying numbers and encrust it. This
+/// relies on arrays and `Vec`s both using the same slice-based encrusting.
 macro_rules! array_to_token_stream {
     ($ty:ty, $variant:ident, $arr:ident, $encruster:ident) => {{
         let mut vec: Vec<$ty> = $arr

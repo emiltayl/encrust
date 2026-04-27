@@ -219,7 +219,7 @@ impl Parse for LiteralNode {
                         return Err(syn::Error::new(
                             integer.span(),
                             format!(
-                                "Supplied integer type `{}` not supported by `encrust_integer`.",
+                                "Supplied integer type `{}` is not supported by the `encrust!` macro.",
                                 integer.suffix()
                             ),
                         ));

@@ -1,7 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(not(test), no_std)]
-
-//! Crate implementing core functionality for `encrust`. See the main crate for documentation.
+#![doc = include_str!("../README.md")]
 
 #[cfg(feature = "hashstrings")]
 mod hashstrings;
@@ -34,8 +33,7 @@ pub mod __private {
     pub use alloc::vec;
 }
 
-/// Container struct for encrust, accepting [`Encrust`] + `Zeroize` types for obfuscation and
-/// deobfuscation when needed.
+/// Container for encrusted data.
 ///
 /// Care should be taken if `T` has a non-trivial `Drop` implementation, as `T` is not dropped until
 /// `zeroize` has been called on it.
@@ -53,7 +51,7 @@ where
     T: Encrust,
     T::Storage: Zeroize,
 {
-    /// Accepts [`Encrust`] + `Zeroize` data and obfuscates it using the provided seed.
+    /// Encrust `data` using `seed`.
     pub fn new(data: T, seed: u64) -> Self {
         let mut data = data.to_storage();
 
@@ -64,19 +62,25 @@ where
         Self { data, seed }
     }
 
-    /// Creates an `Encrusted` object from pre-scrambeled data. This is used by macros to include
-    /// pre-scrambled objects in the source and should not be called manually.
+    /// Create an [`Encrusted`] value from data that has already been encrusted.
+    ///
+    /// This is used by macros to include pre-encrusted objects in generated code.
     ///
     /// # Safety
-    /// Using this may cause data to be scrambled in unpredictable ways that could lead to safety
-    /// issues. This should not be used manually, but only through the provided macros.
+    /// `data` must be the result of calling [`Encrust::toggle_encrust`] exactly once on a valid
+    /// value of type `T`, using the same algorithm version and a random number generator seeded
+    /// with `seed`.
+    ///
+    /// If the storage does not match `seed`, then [`Encrusted::decrust`] may produce invalid
+    /// values. For example, `String` storage may no longer be valid UTF-8, which would make later
+    /// `str` access undefined behavior.
     #[doc(hidden)]
     #[cfg(feature = "macros")]
     pub const unsafe fn from_encrusted_data(data: T::Storage, seed: u64) -> Self {
         Self { data, seed }
     }
 
-    /// Changes the seed used to obfuscate the underlying data.
+    /// Change the seed used to encrust the stored data.
     pub fn reseed(&mut self, new_seed: u64) {
         {
             let mut decruster = Xoshiro256PlusPlus::seed_from_u64(self.seed);
@@ -91,8 +95,7 @@ where
         <T as Encrust>::toggle_encrust(&mut self.data, &mut encrust_rng);
     }
 
-    /// Deobfuscates the data contained in [`Encrusted`] and returns a [`DecrustGuard`] object that
-    /// can be used to access and modify the actual data.
+    /// Decrust the stored data and return a guard that gives access to it.
     #[doc(alias("expose", "unlock"))]
     pub fn decrust(&mut self) -> DecrustGuard<'_, T> {
         DecrustGuard::new(self)
@@ -104,8 +107,7 @@ where
     T: Encrust,
     T::Storage: Zeroize,
 {
-    /// [`Encrusted`]'s drop implementation calls zeroize on the underlying data including the seed
-    /// to prevent secrets from staying in memory when they are no longer needed.
+    /// Zeroize the stored data and seed before dropping them.
     ///
     /// Note that the data is zeroized prior to being dropped, which may cause problems for the drop
     /// implementation of the underlying data.
@@ -115,9 +117,9 @@ where
     }
 }
 
-/// Type used to access encrusted data. Use [`Encrusted::decrust`] to create `DecrustGuard` data.
+/// Guard used to access decrusted data.
 ///
-/// When the `DecrustGuard` object is dropped, the underlying data is re-obfuscated.
+/// When the guard is dropped, the underlying data is encrusted again.
 pub struct DecrustGuard<'decrusted, T>
 where
     T: Encrust,
@@ -160,7 +162,8 @@ where
     type Target = T::Ref;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `DecrustGuard::new`.
+        // SAFETY: `DecrustGuard::new` decrusted the storage, and the guard's exclusive borrow
+        // prevents any other code from re-encrusting or replacing it before this access.
         unsafe { <T as Encrust>::as_ref(&self.encrusted_data.data) }
     }
 }
@@ -171,15 +174,16 @@ where
     T::Storage: Zeroize,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // SAFETY: The data in `self.encrusted_data` was deobfuscated by `DecrustGuard::new`.
+        // SAFETY: `DecrustGuard::new` decrusted the storage, and `&mut self` guarantees unique
+        // access to the decrusted storage for the returned mutable reference.
         unsafe { <T as Encrust>::as_mut_ref(&mut self.encrusted_data.data) }
     }
 }
 
-/// Trait required to use data types with encrust.
+/// Trait for types that can be stored in [`Encrusted`].
 ///
 /// For types where `Storage` and `Ref` are `Self` it is preferable to implement [`InPlaceEncrust`]
-/// as it is simpler. This crates has a blanket implementation of `Encrust` for all types that
+/// as it is simpler. This crate has a blanket implementation of `Encrust` for all types that
 /// implement [`InPlaceEncrust`].
 pub trait Encrust {
     /// The type used to store the encrusted data for the type implementing `Encrust`.
@@ -201,8 +205,8 @@ pub trait Encrust {
     /// Convert `self` to `Self::Storage` for storage in `Encrusted`.
     fn to_storage(self) -> Self::Storage;
 
-    /// Return a reference to `Self::Ref` from `Self::Storage`. This is essentially `DecrustGuard`'s
-    /// `Deref` implementation.
+    /// Return a reference to `Self::Ref` from `Self::Storage`. This is essentially
+    /// [`DecrustGuard`]'s `Deref` implementation.
     ///
     /// # Safety
     /// This function must never be called when `storage` is encrusted. Calling `as_ref` on
@@ -210,19 +214,19 @@ pub trait Encrust {
     unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref;
 
     /// Return a mutable reference to `Self::Ref` from `Self::Storage`. This is essentially
-    /// `DecrustGuard`'s `DerefMut` implementation.
+    /// [`DecrustGuard`]'s `DerefMut` implementation.
     ///
     /// # Safety
     /// This function must never be called when `storage` is encrusted. Calling `as_ref` on
     /// encrusted data may lead to undefined behavior.
     unsafe fn as_mut_ref(storage: &mut Self::Storage) -> &mut Self::Ref;
 
-    /// Called when obfuscating and deobfuscating data.
+    /// Toggle data between encrusted and decrusted form.
     ///
-    /// This function should only be used by the encrust crate to toggle obfuscation state. Do
+    /// This function should only be used by the encrust crate to toggle the encrust state. Do
     /// **not** call this function manually.
     ///
-    /// Calling `toggle_encrust` itself should always be safe. However, calling `as_ref` or
+    /// Calling `toggle_encrust` itself must always be safe. However, calling `as_ref` or
     /// `as_mut_ref` on a value where `toggle_encrust` has been called an odd number of times may
     /// lead to undefined behavior.
     fn toggle_encrust(storage: &mut Self::Storage, encrust_rng: &mut impl Rng);
@@ -231,13 +235,19 @@ pub trait Encrust {
 /// A simpler alternative to [`Encrust`] for types where `Storage` and `Ref` are `Self`.
 ///
 /// This crate implements [`Encrust`] for all types that implement `InPlaceEncrust`.
+///
+/// This trait is safe because the blanket [`Encrust`] implementation stores and exposes `Self`
+/// directly. Implementations that use only safe Rust cannot create invalid values of `Self`; if an
+/// implementation uses unsafe code to do so, that unsafe code is responsible for upholding Rust's
+/// validity rules.
 pub trait InPlaceEncrust {
-    /// Called when obfuscating and deobfuscating data.
+    /// Toggle `self` between encrusted and decrusted form.
     ///
-    /// `toggle_encrust` must be safe to use, that is, it may not leave `self` in an invalid state
-    /// or otherwise make it unsafe to store or access `self`.
+    /// `toggle_encrust` must be safe to call for any valid value of `Self`. It may not leave `self`
+    /// in an invalid state or otherwise make safe access to `self` undefined behavior. Calling the
+    /// method twice with the same RNG and RNG state must restore the original value.
     ///
-    /// This function should only be used by the encrust crate to toggle obfuscation state. Do
+    /// This function should only be used by the encrust crate to toggle the encrust state. Do
     /// **not** call this function manually.
     fn toggle_encrust(&mut self, encrust_rng: &mut impl Rng);
 }
@@ -374,17 +384,18 @@ where
     }
 }
 
-/// Macro for implementing `toggle_encrust` for a slice of integers of different types.
+/// Macro for implementing `toggle_encrust` for a slice of integers.
 ///
 /// # Safety
-/// Must be called inside an unsafe block as it uses `transmute` to convert from a `u64` to an
-/// array of `$ty` numbers. It must be sound to do this transmute for all possible bit patterns.
+/// Must be called inside an unsafe block because it casts `encrust_slice` to `&mut [$ty]`. The
+/// caller must prove that `T::Storage` is exactly `$ty`, so the cast preserves element type,
+/// alignment, and length.
 macro_rules! toggle_encrust_for_integer {
     ($ty:ty, $type_id:ident, $slice:ident, $rng:ident) => {{
         const ARRAY_SIZE: usize = core::mem::size_of::<u64>() / core::mem::size_of::<$ty>();
 
         // The following `assert`s should be optimized away. They help ensure the following:
-        // * `T` is `$ty`, needed to make sure that `slice::from_raw_parts_mut` is sound.
+        // * `T::Storage` is `$ty`, needed to make `slice::from_raw_parts_mut` sound.
         // * There are enough bytes in a `u64` for a `[$ty; ARRAY_SIZE]`.
         assert!($type_id == TypeId::of::<$ty>());
         assert!(core::mem::size_of::<u64>() >= core::mem::size_of::<[$ty; ARRAY_SIZE]>());
@@ -419,46 +430,51 @@ where
 
     if type_id == TypeId::of::<u8>() {
         // SAFETY:
-        // * `T::Storage` is `u8`, which makes `encrust_slice` a `&mut [u8]`.
-        // * `encrust_slice` is shadowed so the original reference cannot be accessed until the new
-        //   reference goes out of scope.
+        // * The `TypeId` check proves `T::Storage` is `u8`, so the cast preserves element type,
+        //   alignment, and length.
+        // * The original slice is shadowed, so no aliasing reference is used while the cast slice
+        //   exists.
         let encrust_slice = unsafe {
             slice::from_raw_parts_mut(encrust_slice.as_mut_ptr().cast::<u8>(), encrust_slice.len())
         };
 
         u8_slice_toggle_encrust(encrust_slice, encrust_rng);
     } else if type_id == TypeId::of::<i8>() {
-        // SAFETY: `i8` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `i8`.
         unsafe {
             toggle_encrust_for_integer!(i8, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<i16>() {
-        // SAFETY: `i16` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `i16`.
         unsafe {
             toggle_encrust_for_integer!(i16, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<i32>() {
-        // SAFETY: `i32` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `i32`.
         unsafe {
             toggle_encrust_for_integer!(i32, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<i64>() {
-        // SAFETY: `i64` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `i64`.
         unsafe {
             toggle_encrust_for_integer!(i64, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<isize>() {
-        // SAFETY: `i64` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `isize`.
         unsafe {
             toggle_encrust_for_integer!(isize, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<i128>() {
         // SAFETY:
-        // * `T::Storage` is `i128`, which makes `encrust_slice` a `&mut [i128]`.
-        // * `encrust_slice` is shadowed so the original reference cannot be accessed until the new
-        //   reference goes out of scope.
+        // * The `TypeId` check proves `T::Storage` is `i128`, so the cast preserves element type,
+        //   alignment, and length.
+        // * The original slice is shadowed, so no aliasing reference is used while the cast slice
+        //   exists.
         let encrust_slice = unsafe {
-            slice::from_raw_parts_mut(encrust_slice.as_mut_ptr().cast::<i128>(), encrust_slice.len())
+            slice::from_raw_parts_mut(
+                encrust_slice.as_mut_ptr().cast::<i128>(),
+                encrust_slice.len(),
+            )
         };
 
         let mut key = [0u8; 16];
@@ -468,32 +484,36 @@ where
             *num ^= i128::from_le_bytes(key);
         }
     } else if type_id == TypeId::of::<u16>() {
-        // SAFETY: `u16` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `u16`.
         unsafe {
             toggle_encrust_for_integer!(u16, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<u32>() {
-        // SAFETY: `u32` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `u32`.
         unsafe {
             toggle_encrust_for_integer!(u32, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<u64>() {
-        // SAFETY: `u64` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `u64`.
         unsafe {
             toggle_encrust_for_integer!(u64, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<usize>() {
-        // SAFETY: `u64` can contain any bit pattern.
+        // SAFETY: The `TypeId` check above proves `T::Storage` is `usize`.
         unsafe {
             toggle_encrust_for_integer!(usize, type_id, encrust_slice, encrust_rng);
         }
     } else if type_id == TypeId::of::<u128>() {
         // SAFETY:
-        // * `T::Storage` is `u128`, which makes `encrust_slice` a `&mut [u128]`.
-        // * `encrust_slice` is shadowed so the original reference cannot be accessed until the new
-        //   reference goes out of scope.
+        // * The `TypeId` check proves `T::Storage` is `u128`, so the cast preserves element type,
+        //   alignment, and length.
+        // * The original slice is shadowed, so no aliasing reference is used while the cast slice
+        //   exists.
         let encrust_slice = unsafe {
-            slice::from_raw_parts_mut(encrust_slice.as_mut_ptr().cast::<u128>(), encrust_slice.len())
+            slice::from_raw_parts_mut(
+                encrust_slice.as_mut_ptr().cast::<u128>(),
+                encrust_slice.len(),
+            )
         };
 
         let mut key = [0u8; 16];
@@ -598,7 +618,7 @@ mod tests {
                     let mut encrusted_data: $t = 0;
                     encrusted_data.toggle_encrust(&mut encrust_rng);
 
-                    // Safety: `toggle_encrust` is called before using `encrusted_data` in
+                    // SAFETY: `toggle_encrust` is called before using `encrusted_data` in
                     // `from_encrusted_data`.
                     let mut encrusted = unsafe {
                         Encrusted::<$t>::from_encrusted_data(encrusted_data, seed)
@@ -639,7 +659,7 @@ mod tests {
                     let mut encrusted_data: [$t; 9] = zero_array;
                     encrusted_data.toggle_encrust(&mut encrust_rng);
 
-                    // Safety: `toggle_encrust` is called before using `encrusted_data` in
+                    // SAFETY: `toggle_encrust` is called before using `encrusted_data` in
                     // `from_encrusted_data`.
                     let mut encrusted = unsafe {
                         Encrusted::<[$t; 9]>::from_encrusted_data(encrusted_data, seed)
@@ -692,8 +712,8 @@ mod tests {
 
         let mut encrusted_string = TEST_STRING.to_string().into_bytes();
 
-        // Safety: Testing from_encrusted_data requires pre-encrusted data, which is an unsafe
-        // operation. The data will not be available without calling `toggle_encrust` again.
+        // SAFETY: Testing `from_encrusted_data` requires pre-encrusted data. The storage below is
+        // toggled exactly once with the same seed before it is passed to `from_encrusted_data`.
         let mut encrusted = unsafe {
             <String as Encrust>::toggle_encrust(&mut encrusted_string, &mut encrust_rng);
             Encrusted::<String>::from_encrusted_data(encrusted_string, seed)
@@ -738,8 +758,8 @@ mod tests {
 
         let mut encrusted_array = orig_array;
 
-        // Safety: Testing from_encrusted_data requires pre-encrusted data, which is an unsafe
-        // operation. The data will not be available without calling `toggle_encrust` again.
+        // SAFETY: Testing `from_encrusted_data` requires pre-encrusted data. The storage below is
+        // toggled exactly once with the same seed before it is passed to `from_encrusted_data`.
         let mut encrusted = unsafe {
             <[u8; 45] as Encrust>::toggle_encrust(&mut encrusted_array, &mut encrust_rng);
             Encrusted::<[u8; 45]>::from_encrusted_data(encrusted_array, seed)
@@ -778,8 +798,8 @@ mod tests {
 
         let mut encrusted_vec = orig_vec.clone();
 
-        // Safety: Testing from_encrusted_data requires pre-encrusted data, which is an unsafe
-        // operation. The data will not be available without calling `toggle_encrust` again.
+        // SAFETY: Testing `from_encrusted_data` requires pre-encrusted data. The storage below is
+        // toggled exactly once with the same seed before it is passed to `from_encrusted_data`.
         let mut encrusted = unsafe {
             <Vec<u8> as Encrust>::toggle_encrust(&mut encrusted_vec, &mut encrust_rng);
             Encrusted::<Vec<u8>>::from_encrusted_data(encrusted_vec, seed)
@@ -818,8 +838,8 @@ mod tests {
     /// version of `encrust`.
     #[test]
     fn ensure_encrust_has_not_changed() {
-        // Safety: Comparing a `String` with invalid UTF-8 in a test should hopefully at worst crash
-        // the test.
+        // SAFETY: This storage was captured from a valid `String` encrusted once with the matching
+        // seed. It is only accessed after `decrust` restores the valid UTF-8 bytes.
         let mut test_string = unsafe {
             Encrusted::<String>::from_encrusted_data(
                 vec![

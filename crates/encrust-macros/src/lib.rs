@@ -1,6 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
-//! Crate implementing macros for `encrust`. See the main crate for documentation.
+#![doc = include_str!("../README.md")]
 
 mod generator;
 mod parser;
@@ -13,8 +12,10 @@ use crate::generator::{
 };
 use crate::parser::{FilePath, LiteralNode, ToHashBytes, ToHashString};
 
-/// Encrust a literal value so the actual data is obfuscated before being included in the binary.
-/// Currently integers, strings and arrays of (arrays of) integers and strings are accepted.
+/// Encrust a literal value before it is included in the binary.
+///
+/// Currently integers, strings and arrays of integers are accepted. Arrays can be
+/// nested arbitrarily deep.
 ///
 /// Integers require their data type suffixed (`-1i8`, `127u16` etc).
 ///
@@ -36,8 +37,7 @@ pub fn encrust(input: TokenStream) -> TokenStream {
         .generate_output_tokens()
 }
 
-/// Read the contents of a file into a string and encrust it so the actual file contents is
-/// obfuscated before being included in the binary.
+/// Read the contents of a file into a string and encrust it before it is included in the binary.
 ///
 /// Unless an absolute path is given, the file is read relative to the `CARGO_MANIFEST_DIR`
 /// environment variable, which is set to the directory containing the crate's `Cargo.toml` file.
@@ -55,8 +55,7 @@ pub fn encrust_file_string(input: TokenStream) -> TokenStream {
     StringFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
 }
 
-/// Read the contents of a file into a `CString` and encrust it so the actual file contents is
-/// obfuscated before being included in the binary.
+/// Read the contents of a file into a `CString` and encrust it before it is included in the binary.
 ///
 /// Unless an absolute path is given, the file is read relative to the `CARGO_MANIFEST_DIR`
 /// environment variable, which is set to the directory containing the crate's `Cargo.toml` file.
@@ -74,8 +73,8 @@ pub fn encrust_file_cstring(input: TokenStream) -> TokenStream {
     CStringFileReader::from(parse_macro_input!(input as FilePath)).generate_output_tokens()
 }
 
-/// Read the contents of a file into a `u8` array and encrust it so the actual file contents is
-/// obfuscated before being included in the binary.
+/// Read the contents of a file into a `u8` array and encrust it before it is included in the
+/// binary.
 ///
 /// Unless an absolute path is given, the file is read relative to the `CARGO_MANIFEST_DIR`
 /// environment variable, which is set to the directory containing the crate's `Cargo.toml` file.

@@ -1,7 +1,7 @@
-//! Functions to search for strings or bytes at run-time without having to include the strings
-//! or byte patterns themselves in the binary.
-//! Macros are used to make it possible to ensure that the plain text is not present in the
-//! executable, see the documentation for [`encrust`] for examples of macro usage.
+//! Hash strings or bytes at run time without storing the original strings or bytes.
+//!
+//! Macros can calculate the hash at compile time so the original data does not need to appear in
+//! the executable. See the `encrust` crate for macro examples.
 
 // Note that items in this crate are behind `#[cfg(feature = "hashstrings")]` to ensure that the
 // generated documentation can display that the types require having the "hashstrings" feature
@@ -19,8 +19,9 @@ pub enum Sensitivity {
     CaseSensitive,
 }
 
-/// The hash of a string.
-/// Can be used to search for strings without storing the string itself in memory.
+/// Represents the hash of a string.
+///
+/// This can be used to compare strings without storing the original string.
 ///
 /// # Example
 /// ```
@@ -44,14 +45,14 @@ pub struct Hashstring {
 
 #[cfg(feature = "hashstrings")]
 impl Hashstring {
-    /// Create a new [`Hashstring`] using the provided string and random seed.
+    /// Create a new [`Hashstring`] using the provided string and seed.
     ///
     /// Note that if `Sensitivity::CaseInsensitive` is used, a new `String` is allocated with the
     /// provided `s` converted to lowercase. The newly allocated string is overwritten using
     /// `Zeroize` after calculating the hash.
     ///
-    /// This function does not zeroize the original string. To avoid ever having the string in
-    /// memory, it is recommended to use the `hashstring!` macro.
+    /// This function does not zeroize the original string. To avoid storing the string in the
+    /// executable, use the `hashstring!` macro.
     pub fn new(s: &str, seed: u64, sensitivity: Sensitivity) -> Self {
         let rapid_secrets = RapidSecrets::seed_cpp(seed);
         let value = match sensitivity {
@@ -108,8 +109,9 @@ impl PartialEq<&str> for Hashstring {
     }
 }
 
-/// The hash of a slice of u8's.
-/// Can be used to search for data without storing the data itself in memory.
+/// Represents the hash of a byte slice.
+///
+/// This can be used to compare byte slices without storing the original bytes.
 ///
 /// # Example
 /// ```
@@ -127,10 +129,10 @@ pub struct Hashbytes {
 
 #[cfg(feature = "hashstrings")]
 impl Hashbytes {
-    /// Create a new [`Hashbytes`] using the provided `u8` slice and random seed.
+    /// Create a new [`Hashbytes`] using the provided `u8` slice and seed.
     ///
-    /// This function does not zeroize the original data. To avoid ever having the data in memory,
-    /// it is recommended to use the `hashbytes` macro.
+    /// This function does not zeroize the original data. To avoid storing the bytes in the
+    /// executable, use the `hashbytes!` macro.
     pub fn new(bytes: &[u8], seed: u64) -> Self {
         let rapid_secrets = RapidSecrets::seed_cpp(seed);
         let value = rapidhash_v3_seeded(bytes, &rapid_secrets);

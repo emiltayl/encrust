@@ -1,43 +1,71 @@
-# encrust
+# Encrust
 
-Hide data at run-time by obfuscating it when it is not in use.
+Hide data at run time by obfuscating ("encrusting") it when it is not in use.
 
-Encrust obfuscates the underlying data, and only exposes it when needed. When the deobfuscated data
-goes out of scope it is obfuscated until next time it is needed.
+Encrust obfuscates the underlying data, and only exposes it when needed. This crate does not provide
+any security as the seed needed to decrust the data is stored next to the data, and no integrity
+checks are performed.
 
-This crate also contains functionality to search for strings or byte patterns without including the
-strings / byte patterns themselves in the executable. The functionality requires the `hashstrings`
-feature to be enabled, which it is by default.
-
-## Example usage
-```rust
-// TODO any non-macro examples or not?
-```
+The crate also provides macros for hashing strings and byte arrays at compile time, so the original
+strings or bytes do not need to be included in the executable. The hash macros require the
+`hashstrings` feature, which is enabled by default.
 
 ## Macros
-Encrust contains several macros for embedding obfuscated values in executables. Obfuscation happens
-at compile-time, and the plain values are not included in the binary.
+
+Encrust contains several macros for embedding encrusted values in executables. Encrusting happens at
+compile time, and the plain values are not included in the binary.
 
 ```rust
-use encrust::{encrust, encrust_file_bytes, encrust_file_string};
+use encrust::{encrust, encrust_file_bytes, encrust_file_cstring, encrust_file_string};
 
-// When encrusting numbers, the data type must be specified.
-let mut obfuscated_int = encrust!(1u32);
-assert_eq!(*obfuscated_int.decrust(), 1u32);
-let mut obfuscated_string = encrust!("Strings can also be encrusted.");
-assert_eq!("Strings can also be encrusted.", &*obfuscated_string.decrust());
-let mut obfuscated_array = encrust!([1u8,2u8,3u8]);
-assert_eq!(&[1u8,2u8,3u8], &*obfuscated_array.decrust());
+let mut encrusted_int = encrust!(1u32);
+assert_eq!(*encrusted_int.decrust(), 1u32);
 
-// Read Cargo.toml for this crate into a String.
+let mut encrusted_string = encrust!("Strings can also be encrusted.");
+assert_eq!("Strings can also be encrusted.", &*encrusted_string.decrust());
+
+let mut encrusted_array = encrust!([1u8, 2u8, 3u8]);
+assert_eq!(&[1u8, 2u8, 3u8], &*encrusted_array.decrust());
+
+// Read `Cargo.toml` into a `String`, array of `u8`, and `CString` and encrust.
 let mut cargo_toml = encrust_file_string!("Cargo.toml");
-// Read Cargo.toml for this crate into a byte array.
 let mut cargo_toml_bytes = encrust_file_bytes!("Cargo.toml");
-assert!(cargo_toml.decrust().as_bytes() == &cargo_toml_bytes.decrust()[..]);
+let mut cargo_toml_cstring = encrust_file_cstring!("Cargo.toml");
 ```
 
+### Supported data types
+
+| Data type | Required feature | Decrusted deref target | Example `encrust!` invocation |
+| --- | --- | --- | --- |
+| `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`, `u128`, `i128`, `usize`, `isize` | None | Same integer type | `encrust!(123u32)` <br> Note that the suffix with the integer type is required. |
+| `String` | None | `str` | `encrust!("secret")` |
+| `CString` | None | `[u8]` | `encrust!(c"secret")` |
+| `[u8; N]` byte string | None | `[u8; N]` | `encrust!(b"secret")` |
+| `[T; N] where T: InPlaceEncrust` <br> numeric array | None | `[T; N]` | `encrust!([1u8, 2u8, 3u8])` |
+| `[[T; N]; M] where T: InPlaceEncrust` <br> nested numeric array | None | `[[T; N]; M]` | `encrust!([[1u8, 2u8], [3u8, 4u8]])` |
+
+## Run-time Encrusting
+
+```rust
+use encrust::Encrusted;
+
+use rand::{rng, Rng};
+
+let mut value = Encrusted::new(String::from("runtime value"), rng().next_u64());
+
+{
+    let mut decrusted = value.decrust();
+    assert_eq!("runtime value", &*decrusted);
+    decrusted.make_ascii_uppercase();
+}
+
+assert_eq!("RUNTIME VALUE", &*value.decrust());
+```
+
+
 ### `hashstrings` macros
-The `hashstrings` feature also contains macros to include the hash of strings and byte array without
+
+The `hashstrings` feature contains macros to include hashes of strings and byte arrays without
 including the data itself.
 
 ```rust
@@ -56,17 +84,15 @@ assert!(hashed_bytes == &[0, 1, 2, 3, 4, 5]);
 ```
 
 ## Limitations
-Encrust currently only offers obfuscation of certain simple data structures, most container types
-are not supported yet. Additionally, certain data are not obfuscated. For vectors and strings, the
-actual data is obfuscated, but pointers to the data as well as the length and capacity fields are
-not.
+Encrust currently supports only certain simple data structures; most container types are not
+supported. Some metadata is not encrusted. For `Vec` and `String`, the buffer contents are
+encrusted, but the pointer, length, and capacity fields are not.
 
 Encrusted data is `zeroize`d prior to being dropped. If you need to perform operations with the data
-prior to dropping it, the encrusted data should be wrapped in a struct. The drop logic can then be
-implemented for the outermost struct, which can access the encrusted data before it is zeroed.
+before dropping it, wrap the encrusted data in another type and implement `Drop` for that outer type.
+The outer `Drop` implementation can decrust the data before the inner `Encrusted` value is zeroized.
 
-Encrust is created for obfuscation within an application, and not to communicate secrets between
-different applications. A proper cryptographic protocol is recommended if you want secure
-communications.
+Encrust is intended for obfuscation within one application, not for communicating secrets between
+applications. Use a cryptographic protocol for secure communication.
 
 License: MIT

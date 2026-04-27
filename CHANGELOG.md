@@ -8,10 +8,9 @@
     * `Storage` - what type `Encrusted` should use for storing the type. This was introduced to
       avoid undefined behavior with `String`s as they require that the data stored in the `String`s
       are valid UTF-8 at all times, even when its not accessed.
-    * `Ref` - the type that `Decrusted` provides a reference to. This allows restricting access to
+    * `Ref` - the type that `DecrustGuard` provides a reference to. This allows restricting access to
       encrusted values. `String` defines `Ref = str` and `Vec<T>` defines `Ref = [T]`. This prevents
-      accidentally pushing new data to the values which could leave old, unobfuscated data in
-      memory.
+      accidentally pushing new data to the values, which could leave an old plaintext copy in memory.
   * New functions that must be defined:
     * `fn to_storage(self) -> Self::Storage` - to prepare a value for storage in `Encrusted`.
     * `unsafe fn as_ref(storage: &Self::Storage) -> &Self::Ref` - convert from a reference to a

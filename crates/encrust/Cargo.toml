@@ -14,6 +14,9 @@ version.workspace = true
 encrust-core = { path = "../encrust-core", "version" = "0.3.2", default-features = false }
 encrust-macros = { path = "../encrust-macros", "version" = "0.3.2", default-features = false, optional = true }
 
+[dev-dependencies]
+rand = { "version" = "0.10.1", default-features = false, features = ["thread_rng"] }
+
 [features]
 all = ["hashstrings", "macros"]
 default = ["hashstrings", "macros"]

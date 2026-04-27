@@ -14,13 +14,13 @@
 [![MIT licensed][mit-badge]][mit-url]
 [![Build Status][build-image]][build-link]
 
-A Rust crate for obfuscating data in memory, deobfuscating it only when needed. Encrust does not
-provide any security as the seed required to deobfuscate the data is stored right next to the data
-itself. No integrity checks are performed, which could lead to safety issues if the obfuscated data
-is modified somehow, for example resulting in `String`s that are not valid UTF-8.
+A Rust crate for obfuscating ("encrusting") data in memory, deobfuscating it only when needed.
 
-This crate also contains functionality to search for strings or byte arrays without including the
-strings or byte arrays in the executable.
+Encrust does not provide any security as the seed required to deobfuscate the data is stored right
+next to the data itself, no integrity checks are performed. If encrusted bytes are modified,
+decrusting may produce invalid values, for example bytes that are not valid UTF-8 for a `String`.
+
+The crate also provides macros for hashing strings and byte arrays at compile time.
 
 ## Example
 Encrust comes with all features enabled by default. To use, add the following to Cargo.toml:
@@ -30,47 +30,88 @@ Encrust comes with all features enabled by default. To use, add the following to
 encrust = "0.3"
 ```
 
-Encrust can then be used to obfuscate data, optionally at compile-time using macros.
+### Encrusting values at compile time
 
 ```rust
-use encrust::{encrust, hashstring};
+use encrust::{encrust, encrust_file_string, encrust_file_bytes, encrust_file_cstring};
 
-// Encrust works by directly modifying the underlying memory
-// Therefore, encrusted values must be mut in order to be read
 let mut hidden_string = encrust!("This string will not appear as-is in the executable.");
-// Numbers need to be suffixed wit their data type
 let mut hidden_number = encrust!(0xabc123u32);
+let mut hidden_bytes = encrust!(b"some bytes");
 
 {
-    // "DecrustGuard" implements Deref and DerefMut to the underlying data
     let string = hidden_string.decrust();
     let number = hidden_number.decrust();
+    let bytes = hidden_bytes.decrust();
 
-    println!("The string is \"{}\" and the number 0x{:x}.", string.as_str(), *number);
+    println!("The string is \"{}\" and the number 0x{:x}.", &*string, *number);
+    assert_eq!(b"some bytes", &*bytes);
 }
 
-// string and number are now out of scope and hidden_string and hidden_number are obfuscated again
+// The guards are now out of scope, so the values are encrusted again.
 
-use std::io::{self, BufRead};
+// It is also possible encrust file contents at compile time. These macros read files relative
+// to the calling crate's `CARGO_MANIFEST_DIR` directory.
+
+// Read `Cargo.toml` as a `String` and obfuscate it.
+let mut cargo_toml = encrust_file_string!("Cargo.toml");
+// Read `Cargo.toml` as an array of `u8` and obfuscate it.
+let mut cargo_toml_bytes = encrust_file_bytes!("Cargo.toml");
+// Read `Cargo.toml` as a `CString` and obfuscate it.
+let mut cargo_toml_cstring = encrust_file_cstring!("Cargo.toml");
+```
+
+#### Supported data types
+
+| Data type | Required feature | Decrusted deref target | Example `encrust!` invocation |
+| --- | --- | --- | --- |
+| `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`, `u128`, `i128`, `usize`, `isize` | None | Same integer type | `encrust!(123u32)` <br> Note that the suffix with the integer type is required. |
+| `String` | None | `str` | `encrust!("secret")` |
+| `CString` | None | `[u8]` | `encrust!(c"secret")` |
+| `[u8; N]` byte string | None | `[u8; N]` | `encrust!(b"secret")` |
+| `[T; N] where T: InPlaceEncrust` <br> numeric array | None | `[T; N]` | `encrust!([1u8, 2u8, 3u8])` |
+| `[[T; N]; M] where T: InPlaceEncrust` <br> nested numeric array | None | `[[T; N]; M]` | `encrust!([[1u8, 2u8], [3u8, 4u8]])` |
+
+### Encrusting values at run time
+
+```rust
+use encrust::Encrusted;
+
+use rand::{rng, Rng};
+
+let mut value = Encrusted::new(String::from("runtime value"), rng().next_u64());
+
+{
+    let mut decrusted = value.decrust();
+    assert_eq!("runtime value", &*decrusted);
+    decrusted.make_ascii_uppercase();
+}
+
+assert_eq!("RUNTIME VALUE", &*value.decrust());
+```
+
+### Hashing values at compile time
+
+```rust
+use encrust::{hashbytes, hashstring, hashstring_ci};
+
 let hashed_string = hashstring!("This string does not appear in the executable");
-let mut line = String::new();
-let stdin = std::io::stdin();
+assert!(hashed_string == "This string does not appear in the executable");
 
-println!("Enter the password: ");
-stdin.lock().read_line(&mut line).unwrap();
+let hashed_string_ci = hashstring_ci!("Case does not matter");
+assert!(hashed_string_ci == "cAsE dOeS nOt MaTtEr");
 
-if hashed_string == &line {
-  println!("You entered the correct password!");
-}
+let hashed_bytes = hashbytes!([1, 2, 3, 4]);
+assert!(hashed_bytes == &[1, 2, 3, 4]);
 ```
 
 ## Feature flags
 
 Encrust has the following feature flags, all enabled by default:
 
-* `hashstrings`: Include functionality to hash strings and byte arrays to search for them without
-  including the actual strings / bytes in the executable.
-* `macros`: Include macros proc macros for obfuscating values at compile-time.
+* `hashstrings`: Hash strings and byte arrays so they can be compared without storing the original
+  strings or bytes in the executable.
+* `macros`: Include proc macros for encrusting values and hashing literals at compile time.
 
 ## License
 
