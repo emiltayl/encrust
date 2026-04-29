@@ -368,6 +368,18 @@ mod tests {
     }
 
     #[test]
+    fn parse_number_fail_on_unsupported_type() {
+        let literal = syn::parse_str::<LiteralNode>("1f32");
+        assert!(literal.is_err());
+
+        let literal = syn::parse_str::<LiteralNode>("1f64");
+        assert!(literal.is_err());
+
+        let literal = syn::parse_str::<LiteralNode>("1u");
+        assert!(literal.is_err());
+    }
+
+    #[test]
     fn parse_numbers_fail_on_outside_range() {
         let literal = syn::parse_str::<LiteralNode>("-1usize");
         assert!(literal.is_err());
@@ -383,8 +395,20 @@ mod tests {
                 .expect("Unable to parse literal");
         assert_eq!(
             literal.kind,
-            LiteralKind::String("The quick brown fox jumps over the lazy dog😊".to_string())
+            LiteralKind::String("The quick brown fox jumps over the lazy dog😊".to_owned())
         );
+    }
+
+    #[test]
+    fn parse_empty_string_literals() {
+        let literal = syn::parse_str::<LiteralNode>("\"\"").expect("Unable to parse literal");
+        assert_eq!(literal.kind, LiteralKind::String(String::new()));
+
+        let literal = syn::parse_str::<LiteralNode>("b\"\"").expect("Unable to parse literal");
+        assert_eq!(literal.kind, LiteralKind::BString(Vec::new()));
+
+        let literal = syn::parse_str::<LiteralNode>("c\"\"").expect("Unable to parse literal");
+        assert_eq!(literal.kind, LiteralKind::CString(c"".to_owned()));
     }
 
     #[test]
@@ -493,24 +517,36 @@ mod tests {
             syn::parse_str::<ToHashString>("\"The quick brown fox jumps over the lazy dog😊\"")
                 .expect("Unable to parse literal");
         assert_eq!(
-            ToHashString("The quick brown fox jumps over the lazy dog😊".to_string()),
+            ToHashString("The quick brown fox jumps over the lazy dog😊".to_owned()),
             string
         );
+
+        let empty = syn::parse_str::<ToHashString>("\"\"").expect("Unable to parse literal");
+        assert_eq!(ToHashString("".to_owned()), empty);
     }
 
     #[test]
     fn parse_tohashbytes() {
-        let bytes =
-            syn::parse_str::<ToHashBytes>("[0x01, 2, 3u8, 0b0]").expect("Unable to parse literal");
-        assert_eq!(ToHashBytes(vec![1, 2, 3, 0]), bytes);
+        let bytes = syn::parse_str::<ToHashBytes>("[0x01, 2, 3u8, 0b0, 255]")
+            .expect("Unable to parse literal");
+        assert_eq!(ToHashBytes(vec![1, 2, 3, 0, 255]), bytes);
+
+        let empty = syn::parse_str::<ToHashBytes>("[]").expect("Unable to parse literal");
+        assert_eq!(ToHashBytes(Vec::new()), empty);
     }
 
     #[test]
-    fn tohashbytes_fails_when_numbers_cannot_fit_u8() {
+    fn tohashbytes_fails_on_invalid_input() {
         let too_large = syn::parse_str::<ToHashBytes>("[0, 256, 0]");
         assert!(too_large.is_err());
 
         let negative = syn::parse_str::<ToHashBytes>("[-1, 2, 3]");
         assert!(negative.is_err());
+
+        let string = syn::parse_str::<ToHashBytes>("[\"not bytes\"]");
+        assert!(string.is_err());
+
+        let nested = syn::parse_str::<ToHashBytes>("[[1], 2, 3]");
+        assert!(nested.is_err());
     }
 }

@@ -15,9 +15,6 @@ rand = { "version" = "0.10.1", default-features = false, features = ["alloc"] }
 zeroize = { version = "1.6.0", features = ["derive"] }
 rapidhash = { version = "4.1.0", default-features = false, optional = true }
 
-[dev-dependencies]
-rand = { "version" = "0.10.1", default-features = false, features = ["thread_rng"] }
-
 [features]
 all = ["macros", "hashstrings"]
 default = ["macros", "hashstrings"]

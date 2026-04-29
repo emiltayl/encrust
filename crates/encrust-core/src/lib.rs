@@ -593,45 +593,49 @@ mod tests {
 
     const TEST_STRING: &str = "The quick brown fox jumps over the lazy dog😊";
 
-    fn get_seed() -> u64 {
-        0x2357_bd11_1317_1d1f
-    }
+    const SEED: u64 = 0x2357_bd11_1317_1d1f;
 
     macro_rules! test_ints {
-        ( $( $t:ty ),* ) => {
+        ( $( $t:ty => [$($value:expr),+ $(,)?] ),* $(,)? ) => {
             $(
-                {
-                    let mut encrusted = Encrusted::<$t>::new(0, get_seed());
-                    assert_ne!(encrusted.data, 0);
-
+                $(
                     {
-                        let decrusted = encrusted.decrust();
-                        assert_eq!(*decrusted, 0);
+                        let mut encrusted = Encrusted::<$t>::new($value, SEED);
+
+                        {
+                            let decrusted = encrusted.decrust();
+                            assert_eq!(*decrusted, $value);
+                        }
+
+                        {
+                            let decrusted = encrusted.decrust();
+                            assert_eq!(*decrusted, $value);
+                        }
                     }
+                )+
 
-                    assert_ne!(encrusted.data, 0);
-                }
-
+                #[cfg(feature = "macros")]
                 {
-                    let seed = get_seed();
-                    let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-                    let mut encrusted_data: $t = 0;
-                    encrusted_data.toggle_encrust(&mut encrust_rng);
+                    $(
+                        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(SEED);
+                        let mut encrusted_data: $t = $value;
+                        encrusted_data.toggle_encrust(&mut encrust_rng);
 
-                    // SAFETY: `toggle_encrust` is called before using `encrusted_data` in
-                    // `from_encrusted_data`.
-                    let mut encrusted = unsafe {
-                        Encrusted::<$t>::from_encrusted_data(encrusted_data, seed)
-                    };
+                        // SAFETY: `toggle_encrust` is called before using `encrusted_data` in
+                        // `from_encrusted_data`.
+                        let mut encrusted = unsafe {
+                            Encrusted::<$t>::from_encrusted_data(encrusted_data, SEED)
+                        };
 
-                    assert_ne!(encrusted.data, 0);
+                        assert_ne!(encrusted.data, $value);
 
-                    {
-                        let decrusted = encrusted.decrust();
-                        assert_eq!(*decrusted, 0);
-                    }
+                        {
+                            let decrusted = encrusted.decrust();
+                            assert_eq!(*decrusted, $value);
+                        }
 
-                    assert_ne!(encrusted.data, 0);
+                        assert_ne!(encrusted.data, $value);
+                    )+
                 }
             )*
         };
@@ -642,7 +646,7 @@ mod tests {
             $(
                 let zero_array: [$t; 9] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
                 {
-                    let mut encrusted = Encrusted::<[$t; 9]>::new(zero_array, get_seed());
+                    let mut encrusted = Encrusted::<[$t; 9]>::new(zero_array, SEED);
                     assert_ne!(encrusted.data, zero_array);
 
                     {
@@ -653,16 +657,16 @@ mod tests {
                     assert_ne!(encrusted.data, zero_array);
                 }
 
+                #[cfg(feature = "macros")]
                 {
-                    let seed = get_seed();
-                    let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+                    let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(SEED);
                     let mut encrusted_data: [$t; 9] = zero_array;
                     encrusted_data.toggle_encrust(&mut encrust_rng);
 
                     // SAFETY: `toggle_encrust` is called before using `encrusted_data` in
                     // `from_encrusted_data`.
                     let mut encrusted = unsafe {
-                        Encrusted::<[$t; 9]>::from_encrusted_data(encrusted_data, seed)
+                        Encrusted::<[$t; 9]>::from_encrusted_data(encrusted_data, SEED)
                     };
 
                     assert_ne!(encrusted.data, zero_array);
@@ -681,7 +685,18 @@ mod tests {
     #[test]
     fn test_ints() {
         test_ints!(
-            u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize
+            u8 => [0u8, 1u8, u8::MAX],
+            i8 => [0i8, 1i8, -1i8, i8::MIN, i8::MAX],
+            u16 => [0u16, 1u16, u16::MAX],
+            i16 => [0i16, 1i16, -1i16, i16::MIN, i16::MAX],
+            u32 => [0u32, 1u32, u32::MAX],
+            i32 => [0i32, 1i32, -1i32, i32::MIN, i32::MAX],
+            u64 => [0u64, 1u64, u64::MAX],
+            i64 => [0i64, 1i64, -1i64, i64::MIN, i64::MAX],
+            u128 => [0u128, 1u128, u128::MAX],
+            i128 => [0i128, 1i128, -1i128, i128::MIN, i128::MAX],
+            usize => [0usize, 1usize, usize::MAX],
+            isize => [0isize, 1isize, -1isize, isize::MIN, isize::MAX],
         );
     }
 
@@ -694,7 +709,7 @@ mod tests {
 
     #[test]
     fn test_strings() {
-        let mut encrusted = Encrusted::new(TEST_STRING.to_string(), get_seed());
+        let mut encrusted = Encrusted::new(TEST_STRING.to_owned(), SEED);
         assert_ne!(encrusted.data, TEST_STRING.as_bytes());
 
         {
@@ -706,17 +721,35 @@ mod tests {
     }
 
     #[test]
-    fn test_strings_from_encrusted() {
-        let seed = get_seed();
-        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+    fn test_string_lengths_around_u8_chunk_boundaries() {
+        for len in [0, 1, 2, 7, 8, 9, 15, 16, 17, 45] {
+            let string = "a".repeat(len);
+            let mut encrusted = Encrusted::new(string.clone(), SEED);
 
-        let mut encrusted_string = TEST_STRING.to_string().into_bytes();
+            {
+                let decrusted = encrusted.decrust();
+                assert_eq!(&*decrusted, string);
+            }
+
+            {
+                let decrusted = encrusted.decrust();
+                assert_eq!(&*decrusted, string);
+            }
+        }
+    }
+
+    #[cfg(feature = "macros")]
+    #[test]
+    fn test_strings_from_encrusted() {
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(SEED);
+
+        let mut encrusted_string = TEST_STRING.to_owned().into_bytes();
 
         // SAFETY: Testing `from_encrusted_data` requires pre-encrusted data. The storage below is
         // toggled exactly once with the same seed before it is passed to `from_encrusted_data`.
         let mut encrusted = unsafe {
             <String as Encrust>::toggle_encrust(&mut encrusted_string, &mut encrust_rng);
-            Encrusted::<String>::from_encrusted_data(encrusted_string, seed)
+            Encrusted::<String>::from_encrusted_data(encrusted_string, SEED)
         };
 
         assert_ne!(encrusted.data, TEST_STRING.as_bytes());
@@ -736,7 +769,7 @@ mod tests {
             24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
         ];
 
-        let mut encrusted = Encrusted::new(orig_array, get_seed());
+        let mut encrusted = Encrusted::new(orig_array, SEED);
         assert_ne!(encrusted.data, orig_array);
 
         {
@@ -749,8 +782,7 @@ mod tests {
 
     #[test]
     fn test_arrays_from_encrusted() {
-        let seed = get_seed();
-        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(SEED);
         let orig_array: [u8; 45] = [
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
             24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
@@ -762,7 +794,7 @@ mod tests {
         // toggled exactly once with the same seed before it is passed to `from_encrusted_data`.
         let mut encrusted = unsafe {
             <[u8; 45] as Encrust>::toggle_encrust(&mut encrusted_array, &mut encrust_rng);
-            Encrusted::<[u8; 45]>::from_encrusted_data(encrusted_array, seed)
+            Encrusted::<[u8; 45]>::from_encrusted_data(encrusted_array, SEED)
         };
 
         assert_ne!(encrusted.data, orig_array);
@@ -779,7 +811,7 @@ mod tests {
     fn test_vecs() {
         let orig_vec = TEST_STRING.as_bytes().to_vec();
 
-        let mut encrusted = Encrusted::new(orig_vec.clone(), get_seed());
+        let mut encrusted = Encrusted::new(orig_vec.clone(), SEED);
         assert_ne!(encrusted.data, orig_vec);
 
         {
@@ -790,10 +822,10 @@ mod tests {
         assert_ne!(encrusted.data, orig_vec);
     }
 
+    #[cfg(feature = "macros")]
     #[test]
     fn test_vecs_from_encrusted() {
-        let seed = get_seed();
-        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        let mut encrust_rng = Xoshiro256PlusPlus::seed_from_u64(SEED);
         let orig_vec = TEST_STRING.as_bytes().to_vec();
 
         let mut encrusted_vec = orig_vec.clone();
@@ -802,7 +834,7 @@ mod tests {
         // toggled exactly once with the same seed before it is passed to `from_encrusted_data`.
         let mut encrusted = unsafe {
             <Vec<u8> as Encrust>::toggle_encrust(&mut encrusted_vec, &mut encrust_rng);
-            Encrusted::<Vec<u8>>::from_encrusted_data(encrusted_vec, seed)
+            Encrusted::<Vec<u8>>::from_encrusted_data(encrusted_vec, SEED)
         };
 
         assert_ne!(encrusted.data, orig_vec);
@@ -818,15 +850,10 @@ mod tests {
     #[test]
     fn test_reseed() {
         let num = 828_627_825_u64;
-        let mut encrusted = Encrusted::new(num, get_seed());
-        let orig_seed = encrusted.seed;
-        let mut rng = rand::rng();
+        let mut encrusted = Encrusted::new(num, SEED);
+        let new_seed = SEED ^ 0xffff_ffff_ffff_ffff;
 
-        encrusted.reseed(rng.next_u64());
-
-        // May fail, but the seed is so large that a collision is highly unlikely if it is selected
-        // randomly.
-        assert_ne!(encrusted.seed, orig_seed);
+        encrusted.reseed(new_seed);
 
         {
             let decrusted = encrusted.decrust();
@@ -834,8 +861,37 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Zeroize)]
+    struct CustomInPlaceEncrust(u32);
+
+    impl InPlaceEncrust for CustomInPlaceEncrust {
+        fn toggle_encrust(&mut self, encrust_rng: &mut impl Rng) {
+            self.0 ^= encrust_rng.next_u32();
+        }
+    }
+
+    #[test]
+    fn vec_of_custom_type_uses_fallback_slice_path() {
+        let values = vec![
+            CustomInPlaceEncrust(0),
+            CustomInPlaceEncrust(1),
+            CustomInPlaceEncrust(u32::MAX),
+            CustomInPlaceEncrust(0xfeed_beef),
+        ];
+
+        let values_clone = values.clone();
+
+        let mut encrusted = Encrusted::new(values, SEED);
+
+        assert_ne!(encrusted.data, values_clone);
+
+        let decrusted = encrusted.decrust();
+        assert_eq!(&*decrusted, &values_clone);
+    }
+
     /// Test to make sure that a previously encrusted object can be decrusted with the current
     /// version of `encrust`.
+    #[cfg(feature = "macros")]
     #[test]
     fn ensure_encrust_has_not_changed() {
         // SAFETY: This storage was captured from a valid `String` encrusted once with the matching

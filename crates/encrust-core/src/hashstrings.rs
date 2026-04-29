@@ -169,8 +169,6 @@ impl PartialEq<&[u8]> for Hashbytes {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
-
     use super::*;
 
     const A_STRING: &str = "A string😶";
@@ -178,15 +176,13 @@ mod tests {
     const A_STRING_BYTES: &[u8] = A_STRING.as_bytes();
     const A_LOWERCASE_STRING_BYTES: &[u8] = A_LOWERCASE_STRING.as_bytes();
 
+    const SEED: u64 = 0x2357_bd11_1317_1d1f;
+
     #[test]
     fn test_hashstrings() {
-        let case_sensitive_hashstring =
-            Hashstring::new(A_STRING, rand::rng().next_u64(), Sensitivity::CaseSensitive);
-        let case_insensitive_hashstring = Hashstring::new(
-            A_STRING,
-            rand::rng().next_u64(),
-            Sensitivity::CaseInsensitive,
-        );
+        let case_sensitive_hashstring = Hashstring::new(A_STRING, SEED, Sensitivity::CaseSensitive);
+        let case_insensitive_hashstring =
+            Hashstring::new(A_STRING, SEED, Sensitivity::CaseInsensitive);
 
         assert!(case_sensitive_hashstring == A_STRING);
         assert!(case_sensitive_hashstring != A_LOWERCASE_STRING);
@@ -196,14 +192,28 @@ mod tests {
 
     #[test]
     fn test_hashbytes() {
-        let hashbytes = Hashbytes::new(A_STRING_BYTES, rand::rng().next_u64());
+        let hashbytes = Hashbytes::new(A_STRING_BYTES, SEED);
 
         assert!(hashbytes == A_STRING_BYTES);
         assert!(hashbytes != A_LOWERCASE_STRING_BYTES);
     }
 
-    /// Test to make sure that a previously encrusted object can be decrusted with the current
-    /// version of `encrust`.
+    #[test]
+    fn test_empty_hashstrings() {
+        let empty = Hashstring::new("", SEED, Sensitivity::CaseSensitive);
+        assert!(empty == "");
+        assert!(empty != " ");
+    }
+
+    #[test]
+    fn test_empty_hashbytes() {
+        let empty = Hashbytes::new(&[], SEED);
+        assert!(empty == &[][..]);
+        assert!(empty != &[0][..]);
+    }
+
+    /// Test to make sure that a previously hashed values can still be used with current version of
+    /// this crate.
     #[test]
     fn ensure_hashstring_bytes_has_not_changed() {
         // Created from `A_LOWERCASE_STRING`
@@ -211,21 +221,15 @@ mod tests {
             clippy::unreadable_literal,
             reason = "Created using a random seed, has no special meaning outside of this crate."
         )]
-        let value = 10002744355855325072u64;
-
-        #[allow(
-            clippy::unreadable_literal,
-            reason = "A random seed, has no special meaning outside of this crate."
-        )]
-        let seed = 15748439925883409278u64;
+        let value = 856128386601824369u64;
 
         let hashed_string_lower =
-            Hashstring::new_from_raw_value(value, seed, Sensitivity::CaseSensitive);
+            Hashstring::new_from_raw_value(value, SEED, Sensitivity::CaseSensitive);
 
         let hashed_string_lower_ci =
-            Hashstring::new_from_raw_value(value, seed, Sensitivity::CaseInsensitive);
+            Hashstring::new_from_raw_value(value, SEED, Sensitivity::CaseInsensitive);
 
-        let hashed_bytes = Hashbytes::new_from_raw_value(value, seed);
+        let hashed_bytes = Hashbytes::new_from_raw_value(value, SEED);
 
         assert!(hashed_string_lower != A_STRING);
         assert!(hashed_string_lower == A_LOWERCASE_STRING);

@@ -13,11 +13,14 @@ const LOWERCASE_TEST_STRING: &str = "the quick brown fox jumps over the lazy dog
 fn test_hashstrings() {
     let case_sensitive = hashstring!("The quick brown fox jumps over the lazy dog😊");
     let case_insensitive = hashstring_ci!("The quick brown fox jumps over the lazy dog😊");
+    let empty = hashstring!("");
 
     assert!(case_sensitive == TEST_STRING);
     assert!(case_insensitive == TEST_STRING);
     assert!(case_sensitive != LOWERCASE_TEST_STRING);
     assert!(case_insensitive == LOWERCASE_TEST_STRING);
+    assert!(empty == "");
+    assert!(empty != " ");
 }
 
 #[test]

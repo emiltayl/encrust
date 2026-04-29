@@ -3,7 +3,7 @@ use std::ffi::CString;
 use encrust_core::{Encrust, Hashbytes, Hashstring, Sensitivity};
 use proc_macro2::Span;
 use quote::{quote, quote_spanned};
-use rand::rngs::SmallRng;
+use rand::rngs::Xoshiro256PlusPlus;
 use rand::{Rng, SeedableRng};
 
 use crate::parser::{ArrayElement, FilePath, LiteralKind, LiteralNode, ToHashBytes, ToHashString};
@@ -137,7 +137,7 @@ pub(crate) trait ToEncrustedTokenStream {
         Self: Sized,
     {
         let seed = rand::rng().next_u64();
-        let mut encruster = SmallRng::seed_from_u64(seed);
+        let mut encruster = Xoshiro256PlusPlus::seed_from_u64(seed);
 
         match self.to_token_stream(&mut encruster) {
             Ok(encrusted_stream) => encrusted_stream.into_output_tokens(seed),
