@@ -63,14 +63,14 @@ let mut cargo_toml_cstring = encrust_file_cstring!("Cargo.toml");
 
 #### Supported data types
 
-| Data type | Required feature | Decrusted deref target | Example `encrust!` invocation |
-| --- | --- | --- | --- |
-| `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`, `u128`, `i128`, `usize`, `isize` | None | Same integer type | `encrust!(123u32)` <br> Note that the suffix with the integer type is required. |
-| `String` | None | `str` | `encrust!("secret")` |
-| `CString` | None | `[u8]` | `encrust!(c"secret")` |
-| `[u8; N]` byte string | None | `[u8; N]` | `encrust!(b"secret")` |
-| `[T; N] where T: InPlaceEncrust` <br> numeric array | None | `[T; N]` | `encrust!([1u8, 2u8, 3u8])` |
-| `[[T; N]; M] where T: InPlaceEncrust` <br> nested numeric array | None | `[[T; N]; M]` | `encrust!([[1u8, 2u8], [3u8, 4u8]])` |
+| Data type | Decrusted deref target | Example `encrust!` invocation |
+| --- | --- | --- |
+| `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`, `u128`, `i128`, `usize`, `isize` | Same integer type | `encrust!(123u32)` <br> Note that the suffix with the integer type is required. |
+| `String` | `str` | `encrust!("secret")` |
+| `CString` | `[u8]` | `encrust!(c"secret")` |
+| `[u8; N]` byte string | `[u8; N]` | `encrust!(b"secret")` |
+| `[T; N] where T: InPlaceEncrust` <br> numeric array | `[T; N]` | `encrust!([1u8, 2u8, 3u8])` |
+| `[[T; N]; M] where T: InPlaceEncrust` <br> nested numeric array | `[[T; N]; M]` | `encrust!([[1u8, 2u8], [3u8, 4u8]])` |
 
 ### Encrusting values at run time
 
