@@ -15,15 +15,13 @@ encrust-core = { path = "../encrust-core", "version" = "0.3.2", default-features
 encrust-macros = { path = "../encrust-macros", "version" = "0.3.2", default-features = false, optional = true }
 
 [dev-dependencies]
-rand = "0.9.0"
-zeroize = { version = "1.6.0", features = ["derive"] }
+rand = { "version" = "0.10.1", default-features = false, features = ["thread_rng"] }
 
 [features]
-all = ["hashstrings", "macros", "std"]
-default = ["hashstrings", "macros", "std"]
+all = ["hashstrings", "macros"]
+default = ["hashstrings", "macros"]
 hashstrings = ["encrust-core/hashstrings", "encrust-macros?/hashstrings"]
 macros = ["dep:encrust-macros", "encrust-core/macros"]
-std = ["encrust-core/std", "encrust-macros?/std"]
 
 [package.metadata.docs.rs]
 all-features = true

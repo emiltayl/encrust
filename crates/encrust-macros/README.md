@@ -1,5 +1,8 @@
 # encrust-macros
 
-Crate implementing macros for `encrust`. See the main crate for documentation.
+Proc macro implementation crate for `encrust`.
+
+Most users should depend on `encrust` instead. The public facade re-exports these macros when the
+`macros` feature is enabled.
 
 License: MIT

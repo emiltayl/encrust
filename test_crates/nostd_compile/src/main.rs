@@ -6,7 +6,7 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 
-use encrust::{encrust, encrust_vec, hashbytes, hashstring, hashstring_ci};
+use encrust::{encrust, hashbytes, hashstring, hashstring_ci};
 
 #[global_allocator]
 static GLOBAL: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
@@ -70,8 +70,9 @@ fn panic(panic_info: &PanicInfo) -> ! {
 #[unsafe(no_mangle)]
 pub extern "C" fn main() -> ! {
     let mut s = encrust!("Hi!");
+    let mut bs = encrust!(b"Hi!");
+    let mut cs = encrust!(c"Hi!");
     let mut n = encrust!([1u8, 2u8, 3u8]);
-    let mut v = encrust_vec![3i8, 2i8, 1i8, 0i8];
     let hs = hashstring!("Hi!");
     let hsci = hashstring_ci!("hi!");
     let hb = hashbytes!([1, 2, 3]);
@@ -80,12 +81,16 @@ pub extern "C" fn main() -> ! {
         assert_eq!("Hi!".as_bytes(), decrusted.as_bytes());
     }
     {
-        let decrusted = n.decrust();
-        assert_eq!(&[1u8, 2u8, 3u8], decrusted.as_slice())
+        let decrusted = bs.decrust();
+        assert_eq!(b"Hi!", &*decrusted);
     }
     {
-        let decrusted = v.decrust();
-        assert_eq!(&[3, 2, 1, 0], decrusted.as_slice());
+        let decrusted = cs.decrust();
+        assert_eq!(c"Hi!".to_bytes_with_nul(), &*decrusted);
+    }
+    {
+        let decrusted = n.decrust();
+        assert_eq!(&[1u8, 2u8, 3u8], decrusted.as_slice())
     }
 
     assert!(hs == "Hi!");

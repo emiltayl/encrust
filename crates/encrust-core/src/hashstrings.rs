@@ -1,7 +1,7 @@
-//! Functions to search for strings or bytes at run-time without having to include the strings
-//! or byte patterns themselves in the binary.
-//! Macros are used to make it possible to ensure that the plain text is not present in the
-//! executable, see the documentation for [`encrust`] for examples of macro usage.
+//! Hash strings or bytes at run time without storing the original strings or bytes.
+//!
+//! Macros can calculate the hash at compile time so the original data does not need to appear in
+//! the executable. See the `encrust` crate for macro examples.
 
 // Note that items in this crate are behind `#[cfg(feature = "hashstrings")]` to ensure that the
 // generated documentation can display that the types require having the "hashstrings" feature
@@ -19,8 +19,9 @@ pub enum Sensitivity {
     CaseSensitive,
 }
 
-/// The hash of a string.
-/// Can be used to search for strings without storing the string itself in memory.
+/// Represents the hash of a string.
+///
+/// This can be used to compare strings without storing the original string.
 ///
 /// # Example
 /// ```
@@ -44,14 +45,14 @@ pub struct Hashstring {
 
 #[cfg(feature = "hashstrings")]
 impl Hashstring {
-    /// Create a new [`Hashstring`] using the provided string and random seed.
+    /// Create a new [`Hashstring`] using the provided string and seed.
     ///
     /// Note that if `Sensitivity::CaseInsensitive` is used, a new `String` is allocated with the
     /// provided `s` converted to lowercase. The newly allocated string is overwritten using
     /// `Zeroize` after calculating the hash.
     ///
-    /// This function does not zeroize the original string. To avoid ever having the string in
-    /// memory, it is recommended to use the `hashstring!` macro.
+    /// This function does not zeroize the original string. To avoid storing the string in the
+    /// executable, use the `hashstring!` macro.
     pub fn new(s: &str, seed: u64, sensitivity: Sensitivity) -> Self {
         let rapid_secrets = RapidSecrets::seed_cpp(seed);
         let value = match sensitivity {
@@ -108,8 +109,9 @@ impl PartialEq<&str> for Hashstring {
     }
 }
 
-/// The hash of a slice of u8's.
-/// Can be used to search for data without storing the data itself in memory.
+/// Represents the hash of a byte slice.
+///
+/// This can be used to compare byte slices without storing the original bytes.
 ///
 /// # Example
 /// ```
@@ -127,10 +129,10 @@ pub struct Hashbytes {
 
 #[cfg(feature = "hashstrings")]
 impl Hashbytes {
-    /// Create a new [`Hashbytes`] using the provided `u8` slice and random seed.
+    /// Create a new [`Hashbytes`] using the provided `u8` slice and seed.
     ///
-    /// This function does not zeroize the original data. To avoid ever having the data in memory,
-    /// it is recommended to use the `hashbytes` macro.
+    /// This function does not zeroize the original data. To avoid storing the bytes in the
+    /// executable, use the `hashbytes!` macro.
     pub fn new(bytes: &[u8], seed: u64) -> Self {
         let rapid_secrets = RapidSecrets::seed_cpp(seed);
         let value = rapidhash_v3_seeded(bytes, &rapid_secrets);
@@ -167,8 +169,6 @@ impl PartialEq<&[u8]> for Hashbytes {
 
 #[cfg(test)]
 mod tests {
-    use rand::RngCore;
-
     use super::*;
 
     const A_STRING: &str = "A string😶";
@@ -176,15 +176,13 @@ mod tests {
     const A_STRING_BYTES: &[u8] = A_STRING.as_bytes();
     const A_LOWERCASE_STRING_BYTES: &[u8] = A_LOWERCASE_STRING.as_bytes();
 
+    const SEED: u64 = 0x2357_bd11_1317_1d1f;
+
     #[test]
     fn test_hashstrings() {
-        let case_sensitive_hashstring =
-            Hashstring::new(A_STRING, rand::rng().next_u64(), Sensitivity::CaseSensitive);
-        let case_insensitive_hashstring = Hashstring::new(
-            A_STRING,
-            rand::rng().next_u64(),
-            Sensitivity::CaseInsensitive,
-        );
+        let case_sensitive_hashstring = Hashstring::new(A_STRING, SEED, Sensitivity::CaseSensitive);
+        let case_insensitive_hashstring =
+            Hashstring::new(A_STRING, SEED, Sensitivity::CaseInsensitive);
 
         assert!(case_sensitive_hashstring == A_STRING);
         assert!(case_sensitive_hashstring != A_LOWERCASE_STRING);
@@ -194,14 +192,28 @@ mod tests {
 
     #[test]
     fn test_hashbytes() {
-        let hashbytes = Hashbytes::new(A_STRING_BYTES, rand::rng().next_u64());
+        let hashbytes = Hashbytes::new(A_STRING_BYTES, SEED);
 
         assert!(hashbytes == A_STRING_BYTES);
         assert!(hashbytes != A_LOWERCASE_STRING_BYTES);
     }
 
-    /// Test to make sure that a previously encrusted object can be decrusted with the current
-    /// version of `encrust`.
+    #[test]
+    fn test_empty_hashstrings() {
+        let empty = Hashstring::new("", SEED, Sensitivity::CaseSensitive);
+        assert!(empty == "");
+        assert!(empty != " ");
+    }
+
+    #[test]
+    fn test_empty_hashbytes() {
+        let empty = Hashbytes::new(&[], SEED);
+        assert!(empty == &[][..]);
+        assert!(empty != &[0][..]);
+    }
+
+    /// Test to make sure that a previously hashed values can still be used with current version of
+    /// this crate.
     #[test]
     fn ensure_hashstring_bytes_has_not_changed() {
         // Created from `A_LOWERCASE_STRING`
@@ -209,21 +221,15 @@ mod tests {
             clippy::unreadable_literal,
             reason = "Created using a random seed, has no special meaning outside of this crate."
         )]
-        let value = 10002744355855325072u64;
-
-        #[allow(
-            clippy::unreadable_literal,
-            reason = "A random seed, has no special meaning outside of this crate."
-        )]
-        let seed = 15748439925883409278u64;
+        let value = 856128386601824369u64;
 
         let hashed_string_lower =
-            Hashstring::new_from_raw_value(value, seed, Sensitivity::CaseSensitive);
+            Hashstring::new_from_raw_value(value, SEED, Sensitivity::CaseSensitive);
 
         let hashed_string_lower_ci =
-            Hashstring::new_from_raw_value(value, seed, Sensitivity::CaseInsensitive);
+            Hashstring::new_from_raw_value(value, SEED, Sensitivity::CaseInsensitive);
 
-        let hashed_bytes = Hashbytes::new_from_raw_value(value, seed);
+        let hashed_bytes = Hashbytes::new_from_raw_value(value, SEED);
 
         assert!(hashed_string_lower != A_STRING);
         assert!(hashed_string_lower == A_LOWERCASE_STRING);
