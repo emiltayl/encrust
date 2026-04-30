@@ -11,8 +11,8 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-encrust-core = { path = "../encrust-core", "version" = "0.3.2", default-features = false }
-encrust-macros = { path = "../encrust-macros", "version" = "0.3.2", default-features = false, optional = true }
+encrust-core = { path = "../encrust-core", "version" = "0.4.0", default-features = false }
+encrust-macros = { path = "../encrust-macros", "version" = "0.4.0", default-features = false, optional = true }
 
 [dev-dependencies]
 rand = { "version" = "0.10.1", default-features = false, features = ["thread_rng"] }

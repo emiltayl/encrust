@@ -1,5 +1,7 @@
 # Unreleased
 
+# Version 0.4.0 - 2026-04-30
+
 ## Changed
 * Changed the name of the `Encrustable` trait to `Encrust` to align the name better with usual
   naming of traits in Rust.

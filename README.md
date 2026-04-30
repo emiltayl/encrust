@@ -27,7 +27,7 @@ Encrust comes with all features enabled by default. To use, add the following to
 
 ```toml
 [dependencies]
-encrust = "0.3"
+encrust = "0.4"
 ```
 
 ### Encrusting values at compile time
