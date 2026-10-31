@@ -44,15 +44,6 @@ mod native {
 
 use native::*;
 
-// Needed to make code compile on Linux.
-// Copied from https://github.com/rust-lang/rust/issues/106864#issuecomment-1858861750
-#[unsafe(no_mangle)]
-extern "C" fn rust_eh_personality() {}
-
-#[allow(non_snake_case)]
-#[unsafe(no_mangle)]
-extern "C" fn _Unwind_Resume() {}
-
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
     let string = alloc::format!("{panic_info}\n");
