@@ -24,7 +24,7 @@ version = "0.4.0"
 [workspace.lints.rust]
 deprecated_safe = { level = "deny", priority = 1 } 
 macro_use_extern_crate = "deny"
-missing-abi = "warn"
+missing_abi = "warn"
 missing_docs = "warn"
 missing_unsafe_on_extern = "warn"
 non_ascii_idents = "deny"
@@ -32,7 +32,7 @@ redundant_imports = "warn"
 unit_bindings = "warn"
 # unused_crate_dependencies = "warn" Add this if it plays nicely with tests
 unused_qualifications = "warn"
-variant-size-differences = "warn"
+variant_size_differences = "warn"
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = 2 }
